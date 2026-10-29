@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Union
 
-from immunefi_cli.keccak import keccak256
+from bb_cli.evm.keccak import keccak256
 
 
 class AbiError(ValueError):

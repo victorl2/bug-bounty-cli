@@ -22,9 +22,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from immunefi_cli import abi
-from immunefi_cli.client import Client, FetchError, http_request
-from immunefi_cli.explorers import Chain, ChainError, EtherscanApi, RateLimited
+from bb_cli.evm import abi
+from bb_cli.evm.client import Client, FetchError, http_request
+from bb_cli.evm.explorers import Chain, ChainError, EtherscanApi, RateLimited
 
 QN_NETWORKS_FILE = Path("~/.config/qn/networks.toml").expanduser()
 QN_PROBE_WORKERS = 8
@@ -184,8 +184,8 @@ def _read_networks_file(path: Path) -> dict[str, str]:
 
 
 def _multichain_endpoint() -> str | None:
-    """HTTP URL of the account's multichain endpoint: $IMMUNEFI_QUICKNODE_URL or `qn endpoint list`."""
-    if env := os.environ.get("IMMUNEFI_QUICKNODE_URL"):
+    """HTTP URL of the account's multichain endpoint: $CANTINA_QUICKNODE_URL or `qn endpoint list`."""
+    if env := (os.environ.get("BB_QUICKNODE_URL") or os.environ.get("IMMUNEFI_QUICKNODE_URL") or os.environ.get("CANTINA_QUICKNODE_URL")):
         return env
     if not shutil.which("qn"):
         return None

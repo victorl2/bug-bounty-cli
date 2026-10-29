@@ -9,10 +9,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from immunefi_cli import __version__, contract_cli, render
-from immunefi_cli.cache import MIN_TTL_HOURS, Cache, default_cache_dir, resolve_ttl_hours
-from immunefi_cli.client import Client, FetchError, Kind, NotFoundError, Result, parse_target
-from immunefi_cli.rsc import PayloadError
+from bb_cli import __version__
+from bb_cli.evm import contract_cli
+from . import render
+from bb_cli.cache import MIN_TTL_HOURS, Cache, default_cache_dir, resolve_ttl_hours
+from bb_cli.providers.immunefi.client import Client, FetchError, Kind, NotFoundError, Result, parse_target
+from bb_cli.rsc import PayloadError
 
 PROGRAM_SORTS = {
     "bounty": (lambda it: it.get("maxBounty") or 0, True),
@@ -100,13 +102,14 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument(
             "sections",
             nargs="*",
-            choices=sections + ["all"],
+
             metavar="section",
             help=f"one or more of: {', '.join(sections)}, all (default: overview)",
         )
         p.set_defaults(handler=cmd_detail, kind=kind, valid_sections=sections)
 
-    contract_cli.add_commands(sub, common, _make_client)
+    from bb_cli.adapters import make_evm_client
+    contract_cli.add_commands(sub, common, lambda args: make_evm_client(args,'immunefi'))
 
     p = sub.add_parser("cache", parents=[common], help="show or clear the local cache")
     p.add_argument("action", nargs="?", choices=["info", "clear"], default="info")
@@ -115,7 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _make_client(args: argparse.Namespace) -> Client:
-    cache = Cache(args.cache_dir or default_cache_dir(), resolve_ttl_hours(args.ttl))
+    from bb_cli.paths import provider_cache
+    cache = Cache(args.cache_dir or provider_cache('immunefi'), resolve_ttl_hours(args.ttl))
     return Client(cache, refresh=args.refresh, offline=args.offline)
 
 
@@ -215,6 +219,8 @@ def cmd_detail(args: argparse.Namespace, style: render.Style) -> int:
     kind: Kind = url_kind or args.kind
     valid = COMPETITION_SECTIONS if kind == "competition" else PROGRAM_SECTIONS
     sections = args.sections or ["overview"]
+    if any(s not in valid + ["all"] for s in sections):
+        raise ValueError("unknown detail section")
     sections = valid if "all" in sections else [s for s in valid if s in sections]
     client = _make_client(args)
     try:

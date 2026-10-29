@@ -21,8 +21,8 @@ from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
-from immunefi_cli import abi
-from immunefi_cli.client import FetchError, NotFoundError, http_request
+from bb_cli.evm import abi
+from bb_cli.evm.client import FetchError, NotFoundError, http_request
 
 ETHERSCAN_API = "https://api.etherscan.io/v2/api"
 ETHERSCAN_CHAINLIST = "https://api.etherscan.io/v2/chainlist"
@@ -245,7 +245,7 @@ class Registry:
             return matches[0]
         if matches:
             raise ValueError(f"chain {value!r} is ambiguous: " + ", ".join(f"{c.name} ({c.id})" for c in matches))
-        raise ValueError(f"unknown chain {value!r}; use a chain id or see `immunefi contract chains`")
+        raise ValueError(f"unknown chain {value!r}; use a chain id or see `bb contract chains`")
 
 
 # --- verified source providers ----------------------------------------------------------------------

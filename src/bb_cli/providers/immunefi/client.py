@@ -17,8 +17,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-from immunefi_cli import __version__, rsc
-from immunefi_cli.cache import Cache, Entry
+from bb_cli import __version__, rsc
+from bb_cli.cache import Cache, Entry
 
 BASE_URL = "https://immunefi.com"
 PUBLIC_API_URL = f"{BASE_URL}/public-api/bounties.json"
@@ -35,14 +35,7 @@ _SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _URL_RE = re.compile(r"(bug-bounty|audit-competition)/([^/?#]+)")
 
 
-class FetchError(RuntimeError):
-    def __init__(self, message: str, status: int | None = None):
-        super().__init__(message)
-        self.status = status  # HTTP status, when the server answered
-
-
-class NotFoundError(FetchError):
-    pass
+from bb_cli.evm.client import FetchError, NotFoundError
 
 
 @dataclass
@@ -197,6 +190,8 @@ class Client:
         )
 
     def detail(self, kind: Kind, slug: str) -> Result:
+        url_kind, slug = parse_target(slug)
+        kind = url_kind or kind
         def fetch(url: str) -> dict:
             page = _fetch_page(url)
             bounty = page.find("bounty", dict, where=lambda b: b.get("slug") == slug)

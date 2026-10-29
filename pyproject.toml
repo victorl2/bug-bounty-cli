@@ -1,18 +1,21 @@
 [project]
-name = "immunefi-cli"
-version = "0.1.0"
-description = "Browse Immunefi bug-bounty programs and audit competitions, and read their in-scope contracts on any EVM chain"
+name = "bug-bounty-cli"
+version = "0.3.0"
+description = "Multi-source bug bounty and audit competition discovery, scope and read-only EVM inspection"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-immunefi = "immunefi_cli.cli:main"
+bb = "bb_cli.cli:main"
+bug-bounty = "bb_cli.cli:main"
+immunefi = "bb_cli.providers.immunefi.cli:main"
+cantina = "bb_cli.providers.cantina.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/immunefi_cli"]
+packages = ["src/bb_cli", "src/immunefi_cli", "src/cantina_cli"]

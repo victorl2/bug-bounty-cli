@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from immunefi_cli import abi
-from immunefi_cli.client import Client, FetchError, http_request
-from immunefi_cli.explorers import (
+from bb_cli.evm import abi
+from bb_cli.evm.client import Client, FetchError, http_request
+from bb_cli.evm.explorers import (
     ETHERSCAN_CHAINLIST,
     Chain,
     ChainError,
@@ -25,7 +25,7 @@ from immunefi_cli.explorers import (
     host_of,
     normalize,
 )
-from immunefi_cli.rpc import CallReverted, EtherscanProxy, JsonRpc, QuickNode, block_tag
+from bb_cli.evm.rpc import CallReverted, EtherscanProxy, JsonRpc, QuickNode, block_tag
 
 MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
 MULTICALL_BATCH = 40
@@ -174,7 +174,7 @@ class OnChain:
                 candidates.append(qn)
         if mode == "quicknode" and not candidates:
             raise ChainError(f"QuickNode has no network for {chain.name} ({chain.id})" if self.quicknode
-                             else "QuickNode not found: install and log in to the `qn` CLI, or set IMMUNEFI_QUICKNODE_URL")
+                             else "QuickNode not found: install and log in to the `qn` CLI, or set CANTINA_QUICKNODE_URL")
         if mode in ("auto", "public"):
             candidates += [JsonRpc(url, f"{host_of(url)} RPC", archive=False) for url in chain.public_rpcs]
         if mode in ("auto", "explorer"):
@@ -203,13 +203,13 @@ class OnChain:
         code = self._rpc(chain, "eth_getCode", [address, block_tag(block)], block) or "0x"
         return (len(code) - 2) // 2
 
-    def code_sizes(self, chain: Chain, addresses: list[str]) -> dict[str, int | ChainError]:
+    def code_sizes(self, chain: Chain, addresses: list[str], block: int | str | None = None) -> dict[str, int | ChainError]:
         """Deployed code size for many addresses, batched into few requests."""
-        node = self.node(chain)
+        node = self.node(chain, block)
         out: dict[str, int | ChainError] = {}
         for i in range(0, len(addresses), CODE_BATCH):
             chunk = addresses[i : i + CODE_BATCH]
-            for address, code in zip(chunk, node.batch([("eth_getCode", [a, "latest"]) for a in chunk])):
+            for address, code in zip(chunk, node.batch([("eth_getCode", [a, block_tag(block)]) for a in chunk])):
                 out[address] = code if isinstance(code, ChainError) else (len(code or "0x") - 2) // 2
         return out
 
@@ -221,9 +221,9 @@ class OnChain:
         raw = self._rpc(chain, "eth_call", [{"to": to, "data": "0x" + data.hex()}, block_tag(block)], block) or "0x"
         return bytes.fromhex(raw.removeprefix("0x"))
 
-    def live_implementation(self, chain: Chain, address: str) -> str | None:
+    def live_implementation(self, chain: Chain, address: str, block: int | str | None = None) -> str | None:
         """Implementation address from the EIP-1967 slot, if the contract uses it."""
-        word = int.from_bytes(self.storage(chain, address, SLOTS["implementation"]), "big")
+        word = int.from_bytes(self.storage(chain, address, SLOTS["implementation"], block), "big")
         return abi.checksum_address(f"{word:040x}") if word else None
 
     def multicall(

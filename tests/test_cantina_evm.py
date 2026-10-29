@@ -7,9 +7,9 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from immunefi_cli import abi, client, explorers, onchain, rpc  # noqa: E402
-from immunefi_cli.cache import Cache  # noqa: E402
-from immunefi_cli.keccak import keccak256  # noqa: E402
+from bb_cli.evm import abi, client, explorers, onchain, rpc  # noqa: E402
+from bb_cli.cache import Cache  # noqa: E402
+from bb_cli.evm.keccak import keccak256  # noqa: E402
 
 # Reference values produced with Foundry's `cast keccak` / `cast calldata`.
 TUPLE_ARRAY_CALLDATA = (

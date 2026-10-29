@@ -1,4 +1,4 @@
-"""``immunefi contract ...``: inspect and read smart contracts across EVM chains."""
+"""``bb contract ...``: inspect and read smart contracts across EVM chains."""
 
 from __future__ import annotations
 
@@ -10,11 +10,12 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable
 
-from immunefi_cli import abi, render
-from immunefi_cli.keccak import keccak256
-from immunefi_cli.client import Client, FetchError, Kind, parse_target
-from immunefi_cli.explorers import NON_EVM_HOSTS, Chain, ChainError, Contract, first_address, host_of
-from immunefi_cli.onchain import RPC_MODES, SLOTS, OnChain
+from bb_cli.evm import abi, render
+from bb_cli.evm.keccak import keccak256
+from bb_cli.evm.client import Client, FetchError, Kind
+from bb_cli.evm.explorers import NON_EVM_HOSTS, Chain, ChainError, Contract, first_address, host_of
+from bb_cli.evm.onchain import RPC_MODES, SLOTS, OnChain
+
 
 ClientFactory = Callable[[argparse.Namespace], Client]
 
@@ -39,7 +40,7 @@ def add_commands(sub: Any, common: argparse.ArgumentParser, make_client: ClientF
         aliases=["c"],
         help="inspect and read smart contracts (any EVM chain)",
         description="Verified source comes from Etherscan, the chain's own explorer or Sourcify and is "
-        "cached like the Immunefi data; balances, calls and storage come from a node (QuickNode, "
+        "cached alongside Cantina metadata; balances, calls and storage come from a node (QuickNode, "
         "--rpc, explorer or Etherscan) and are never cached.",
     )
     verbs = contract.add_subparsers(dest="verb", required=True, metavar="<action>")
@@ -80,7 +81,7 @@ def add_commands(sub: Any, common: argparse.ArgumentParser, make_client: ClientF
     p.set_defaults(handler=cmd_storage)
 
     p = verbs.add_parser("scope", parents=parents, help="resolve a program's in-scope contracts on their explorers")
-    p.add_argument("program", help="program or competition slug / immunefi.com URL")
+    p.add_argument("program", help="program or competition target / provider URL")
     p.add_argument("--competition", action="store_true", help="the slug is an audit competition")
     p.add_argument("--download", type=Path, metavar="DIR", help="also download verified sources (implementations too) into DIR")
     p.add_argument("--limit", type=int, help="only the first N contracts")
@@ -220,7 +221,7 @@ def cmd_info(args: argparse.Namespace, style: render.Style) -> int:
         code_size = es.code_size(chain, address, args.block)
         balance = es.balance(chain, address, args.block)
         if code_size:
-            slot_impl = es.live_implementation(chain, address)
+            slot_impl = es.live_implementation(chain, address, args.block)
     except ChainError as exc:
         live_error = str(exc)
     if code_size == 0:
@@ -295,8 +296,8 @@ def cmd_info(args: argparse.Namespace, style: render.Style) -> int:
         doc.raw("\n".join(_function_lines(reads, style)) or "  -")
         doc.sub(f"Write functions ({len(writes)})")
         doc.raw("\n".join(_function_lines(writes, style)) or "  -")
-    hint = f"immunefi contract read {address} --chain {chain.id}"
-    doc.raw("\n" + style.dim(f"Next: `{hint}` to dump state, `immunefi contract source {address} --chain {chain.id}{' --impl' if implementation else ''}` for code"))
+    hint = f"bb contract read {address} --chain {chain.id}"
+    doc.raw("\n" + style.dim(f"Next: `{hint}` to dump state, `bb contract source {address} --chain {chain.id}{' --impl' if implementation else ''}` for code"))
     sys.stdout.write(doc.render())
     return 0
 
@@ -333,7 +334,7 @@ def cmd_source(args: argparse.Namespace, style: render.Style) -> int:
     es, chain, address = _target(args)
     contract = es.contract(chain, address)
     if args.impl:
-        impl_address = contract.implementation or es.live_implementation(chain, address)
+        impl_address = contract.implementation or es.live_implementation(chain, address, args.block)
         if not impl_address:
             raise ChainError(f"{address} is not a proxy (no implementation found)")
         contract = es.contract(chain, impl_address)
@@ -469,8 +470,8 @@ def cmd_storage(args: argparse.Namespace, style: render.Style) -> int:
 
 def cmd_scope(args: argparse.Namespace, style: render.Style) -> int:
     es = _onchain(args)
-    url_kind, slug = parse_target(args.program)
-    kind: Kind = url_kind or ("competition" if args.competition else "program")
+    slug = args.program
+    kind: Kind = "competition" if args.competition else "program"
     bounty = es.client.detail(kind, slug).data
 
     targets: list[tuple[dict, str, Chain]] = []
@@ -527,7 +528,7 @@ def cmd_scope(args: argparse.Namespace, style: render.Style) -> int:
         for chain_id, group in by_chain.items():
             _progress(f"checking deployed code on {group[0]['chain']}")
             try:
-                sizes = es.code_sizes(es.resolve_chain(chain_id), [r["address"] for r in group])
+                sizes = es.code_sizes(es.resolve_chain(chain_id), [r["address"] for r in group], args.block)
             except (ChainError, FetchError) as exc:
                 for r in group:
                     r["codeError"] = str(exc)
@@ -569,7 +570,7 @@ def cmd_scope(args: argparse.Namespace, style: render.Style) -> int:
     if non_evm:
         notes.append(f"{non_evm} non-EVM assets skipped")
     if any("codeError" in r for r in records):
-        notes.append("CODE '-' = no node for that chain (see `immunefi contract chains`)")
+        notes.append("CODE '-' = no node for that chain (see `bb contract chains`)")
     if notes:
         print(style.dim("\n" + "\n".join(notes)))
     if args.download:

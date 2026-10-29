@@ -1,186 +1,199 @@
-# immunefi-cli
+# bug-bounty-cli (`bb`)
 
-Browse [Immunefi](https://immunefi.com) bug-bounty programs and audit competitions from the
-terminal, and read their in-scope smart contracts on any EVM chain. No runtime dependencies
-(Python 3.10+ standard library only).
+Discover and compare bug bounties and audit competitions across **Immunefi and Cantina**, retrieve
+rules and scope, and inspect in-scope EVM contracts. One package, a shared contract engine, no
+runtime dependencies; Python 3.10+.
+
+This project replaces the former `immunefi-cli` and incorporates `cantina-cli`. Existing Git history
+is retained at [victorl2/bug-bounty-cli](https://github.com/victorl2/bug-bounty-cli).
 
 ## Install
 
 ```sh
-uv tool install git+https://github.com/victorl2/immunefi-cli   # or: pipx install git+https://...
-immunefi --help
+uv tool install git+https://github.com/victorl2/bug-bounty-cli
+# From a local clone: uv tool install --editable .
+bb --help
+bb sources
 ```
 
-From a local clone: `uv tool install --editable .` (or `pipx install -e .`).
-
-Without installing: `uv run immunefi ...` from this directory, or `PYTHONPATH=src python3 -m immunefi_cli ...`.
-
-## Usage
+The package installs `bb`, `bug-bounty`, and compatibility commands `immunefi` and `cantina`.
+When replacing separately installed old tools, uninstall their old distributions first:
 
 ```sh
-# Lists
-immunefi programs                                  # all active bug bounties, by max bounty
-immunefi programs -e ETH -l Solidity --min-bounty 100000 -n 20
-immunefi programs --search lido --sort updated
-immunefi competitions                              # all audit competitions, newest first
-immunefi competitions --status active              # upcoming + live
-
-# Program details: overview (default), information, scope, resources, all
-immunefi program ssvnetwork
-immunefi program ssvnetwork scope resources
-immunefi program https://immunefi.com/bug-bounty/ssvnetwork/information/#top all
-
-# Competition details: same sections plus leaderboard
-immunefi competition audit-comp-quantus
-immunefi competition audit-comp-quantus information leaderboard
-
-# Machine-readable output
-immunefi programs --json | jq '.[].slug'
-immunefi program ssvnetwork --json | jq '.assets'
+uv tool uninstall immunefi-cli
+uv tool uninstall cantina-cli
+uv tool install --editable .
 ```
 
-| Section       | Contents                                                                                     |
-|---------------|----------------------------------------------------------------------------------------------|
-| `overview`    | Status, max bounty / reward pool, dates, vault, KYC, PoC, tags, features, description        |
-| `information` | Vault, rewards by threat level, program overview, audits, known issues, KYC, rules           |
-| `scope`       | Assets in scope, impacts in scope by severity, out-of-scope rules                            |
-| `resources`   | Codebases, documentation, website/GitHub links, audits                                       |
-| `leaderboard` | Competitions only: whitehat ranking, earnings and findings by severity                       |
+Without installing: `PYTHONPATH=src python3 -m bb_cli ...`.
 
-Aliases: `bounties`/`ls` = `programs`, `comps` = `competitions`, `bounty` = `program`, `comp` = `competition`.
-
-## Smart contracts
-
-`immunefi contract` reads in-scope contracts on any EVM chain. It combines two kinds of source:
-
-| Need | Sources, in order | Keys |
-|---|---|---|
-| Verified source, ABI, proxy info | [Etherscan API v2](https://docs.etherscan.io/) → the chain's own explorer API (Blockscout instances, Routescan, zkSync) → [Sourcify](https://sourcify.dev) | `ETHERSCAN_API_KEY` (free); the rest need none |
-| Live state (balances, calls, storage) | your [QuickNode](https://www.quicknode.com) multichain endpoint → the chain's public RPC → the explorer's RPC → Etherscan's proxy | QuickNode via the `qn` CLI |
-| Historical state (`--block`) | QuickNode, or `--rpc <archive URL>` | |
-
-`immunefi contract chains` shows which source and node each of the ~130 known chains uses.
+## Compare sources
 
 ```sh
-# A program's in-scope contracts: verified source, proxy -> implementation, deployed code
-immunefi contract scope ssvnetwork
-immunefi contract scope ssvnetwork --download ./ssv-src     # verified sources, implementations too
-
-# Any contract: an address (Ethereum by default) or an explorer URL, which selects the chain
-immunefi contract info https://etherscan.io/address/0xDD9BC35aE942eF0cFa76930954a156B3fF30a4E1
-immunefi contract info https://rootstock.blockscout.com/address/0xf773B590aF754D597770937Fa8ea7AbDf2668370
-immunefi contract info 0x... --chain arbitrum
-immunefi contract abi 0x...                                 # functions with selectors, events with topics
-immunefi contract source 0x... --impl -o ./impl             # proxy -> implementation source
-
-# Live and historical state
-immunefi contract read 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48     # every argument-less view function
-immunefi contract call 0xA0b8... balanceOf 0x28C6c06298d514Db089934071355E5743bf21d60
-immunefi contract call 0x4200000000000000000000000000000000000006 totalSupply --chain base --block 20000000
-immunefi contract call 0xA0b8... 0x313ce567                  # raw calldata, raw result
-immunefi contract storage 0x... implementation               # EIP-1967 slots, or any slot number
+bb programs                                  # both sources, sorted together by maximum reward
+bb programs --source immunefi --search lido
+bb --source cantina programs --min-bounty 1000000
+bb programs -l Solidity -e ETH --kyc yes -n 20 --json
+bb competitions --status active --sort end
+bb competitions --source cantina --status finished --sort pool
 ```
 
-### Nodes and QuickNode
+`--source immunefi|cantina|all` can appear before or after the command. Discovery defaults to all
+sources. Results are filtered per source, then globally sorted and limited. The same project on
+two platforms stays as two records, because rules and scope can differ. If either selected source
+fails without usable fallback data, the command fails without printing a partial combined list.
 
-`--rpc` picks the node for live reads: a JSON-RPC URL, or one of `auto` (default), `quicknode`,
-`public`, `explorer` or `etherscan`.
+Common filters: `--search`, `--ecosystem`, `--language`, `--type`, `--project-type`, `--kyc`,
+`--min-bounty`, `--status`, `--include-paused`. Sorts: `bounty`/`reward`/`pool`, `name`,
+`launched`/`start`, `end`, `updated`, `vault`; `--reverse` reverses order, `--limit` bounds output.
+Provider-specific sort/filter availability remains enforced. Select Immunefi for vault balances
+or project-type tags: Cantina publishes neither. Cantina's language/ecosystem filters use explicit
+reference evidence rather than a complete tag taxonomy. Unknown values stay unknown.
 
-In `auto` mode the CLI uses your QuickNode account when the [`qn` CLI](https://www.quicknode.com/docs)
-is installed and logged in:
-- It reads your multichain endpoint with `qn endpoint list` and the per-network hosts from
-  `~/.config/qn/networks.toml`. Alternatively, set `IMMUNEFI_QUICKNODE_URL` to the endpoint's
-  HTTP URL.
-- It probes once which chain ID each network serves, and caches only network names and chain IDs.
-- The endpoint token stays in memory and is never written to disk or printed.
+Reward sorting compares published numeric maximums, **without exchange-rate conversion**. The
+currency remains visible; USD, USDC and token-denominated or mixed rewards are not interchangeable.
+An absent Cantina update timestamp stays null in normalized output. No creation timestamp is
+presented as an update timestamp.
 
-Behaviour verified against the live services:
-- QuickNode serves real historical state on 75 chains. It is pruned on Monad, MegaETH and Sei
-  testnet.
-- Etherscan's proxy silently answers a past block with the latest state. Public and explorer RPCs
-  are inconsistent about it. All three are therefore limited to `latest`, and `--block` without a real node
-  is refused instead of returning wrong data.
-- With a free Etherscan key, live reads on Base, BNB Chain, OP, Avalanche and Gnosis need a paid
-  plan. QuickNode covers them.
-- Keyless Blockscout APIs allow about 10 calls per hour. When one is exhausted the CLI says
-  "rate limited" for the affected contracts instead of caching them as unverified, so a later
-  run fills them in.
+## Source-qualified details
 
-### Details
+```sh
+bb program immunefi:ssvnetwork all --json
+bb program cantina:Uniswap scope resources --json
+bb competition cantina:e7af4986-183d-4764-8bd2-1d6b47f87d99 leaderboard --json
+bb program https://immunefi.com/bug-bounty/ssvnetwork/information/ all
+bb program --source cantina Uniswap all
+```
 
-- **Proxies** are detected from explorer proxy flags and the EIP-1967 implementation slot.
-  `read`, `call` and `abi` use the implementation's ABI against the proxy address.
-- **`read`** batches every getter into one call through
-  [Multicall3](https://www.multicall3.com/), falling back to one call per getter where Multicall3
-  isn't deployed.
-- **`call`** accepts a function name (resolved from the ABI), a signature, a cast-style
-  `sig(inputs)(outputs)` for unverified contracts, or raw `0x` calldata. Arguments: arrays as
-  `[a,b]`, tuples as `(a,b)`, and integers as `1e18` or `1.5ether`. Calls are simulated with
-  `eth_call`, so nothing is signed or sent.
-- **`scope`** checks with one batched request per chain that every address actually has code
-  there. "NO CODE" usually means a wrong chain or a wrong address in the program listing.
-- **Caching:** verified source, ABI and creation info are cached like the Immunefi data (10h+).
-  A provider failure is never cached as "unverified". Balances, calls and storage are live and
-  never cached, and `--offline` refuses them.
-- **Rate limits:** Etherscan's free tier allows 3 requests per second. Requests are spaced out
-  and retried when rate-limited, so a first `scope` of a 300-contract program takes a few minutes.
-- **Not covered:** non-EVM assets (Starknet, Sui, Aptos, Stacks, ...) are skipped. A few explorers
-  are offline or block API access; Sourcify still covers many of their contracts.
+A provider URL or `source:target` prefix chooses the provider. An explicit conflicting `--source`
+is rejected. Bare detail targets default to Immunefi for backward compatibility. Immunefi accepts
+slugs; Cantina accepts UUIDs, names and handles (with ambiguity errors and UUID suggestions).
 
-The ABI codec and Keccak-256 are implemented in pure Python (no dependencies) and are tested
-against Foundry's `cast` output.
+Sections: `overview`, `information`, `scope`, `resources`, `leaderboard` for competitions, and `all`.
+Source-specific detail behavior is preserved. Normalized detail JSON wraps the provider response
+as `{"source": "cantina", "kind": "program", "target": "cantina:Uniswap", "data": {...}}`.
 
-## Caching
+Discovery JSON uses a common record:
 
-Every list and detail page is cached as parsed JSON under `~/.cache/immunefi-cli`
-(`$XDG_CACHE_HOME` and `IMMUNEFI_CACHE_DIR` are honoured). Entries are reused for **12 hours** by
-default; the TTL can be raised with `--ttl HOURS` or `IMMUNEFI_CACHE_TTL_HOURS`, but never goes
-below **10 hours**.
+```json
+{
+  "source": "cantina",
+  "id": "f9df94db-c7b1-434b-bb06-d1360abdd1be",
+  "target": "cantina:f9df94db-c7b1-434b-bb06-d1360abdd1be",
+  "kind": "program",
+  "name": "Uniswap",
+  "url": "https://cantina.xyz/bounties/f9df94db-c7b1-434b-bb06-d1360abdd1be",
+  "status": "live",
+  "reward": 15500000,
+  "currency": "USDC",
+  "kyc": true,
+  "raw": {}
+}
+```
 
-- `--refresh` forces a re-fetch of what the command needs.
-- `--offline` only reads the cache.
-- If a fetch fails and an expired entry exists, the stale data is shown with a warning.
-- `immunefi cache` shows entries and their age; `immunefi cache clear` deletes them.
+`raw` contains the entire original provider record, not the empty placeholder in the example.
+The record also includes nullable `start`, `end` and `updated` timestamps. Source-qualified targets
+from a listing can be fed directly to detail and contract-scope commands.
 
-Competition status is advanced by the competition's dates when shown from cache, so a cached
-`UPCOMING` competition reads as `LIVE` once its start date has passed.
+## One EVM engine
 
-## How it works
+```sh
+bb contract chains
+bb contract scope immunefi:ssvnetwork --rpc quicknode --limit 2 --json
+bb contract scope cantina:Polymarket --rpc quicknode --download ./sources --limit 2
+bb contract scope cantina:Polymarket --no-live --offline --json
+bb contract info https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+bb contract abi <address> --chain base --json
+bb contract source <explorer-url> --impl -o ./implementation
+bb contract read <explorer-url> --rpc quicknode --block 21000000
+bb contract call <address> 'balanceOf(address)(uint256)' <holder> --chain eth --rpc quicknode --block 21000000
+bb contract storage <address> implementation --chain eth --rpc quicknode --block 21000000
+```
 
-Immunefi's site is a Next.js App Router app. Its listing and program pages make no JSON API
-calls of their own: the data is rendered on the server and streamed to the browser as a React
-Server Components (RSC) payload. The CLI requests that stream directly (`RSC: 1` header, the same
-request the site's client-side navigation makes), so it gets the data without the HTML around it:
+Standalone contract commands are source-independent. Scope metadata comes from the chosen
+provider; verified source/ABI, proxy resolution, EIP-1967 reads, batched code checks, source downloads,
+getter multicalls, ABI encoding and historical RPC reads use the same implementation and cache.
+Contracts are never signed or broadcast. `--no-live` skips deployed-code checks; it can still fetch
+verified source. Source-only scopes do not imply deployed addresses or chains.
 
-- `/bug-bounty/` and `/audit-competition/` carry a `bounties` array (the lists).
-- `/<kind>/<slug>/information/` carries the full `bounty` object, which backs all of the page's
-  tabs (information, scope, resources, leaderboard), plus the Immunefi `vault`.
+Use `ETHERSCAN_API_KEY` for supported explorer APIs. QuickNode is discovered through the logged-in
+`qn` CLI or `BB_QUICKNODE_URL`; legacy `IMMUNEFI_QUICKNODE_URL` and `CANTINA_QUICKNODE_URL` are also
+accepted. Historical flags pin RPC state; source/ABI metadata still reflects current explorer
+metadata. Credentials never belong in reports, committed files, or command output.
 
-So each detail view costs one request (~20 KB compressed), however many sections you print.
-For a missing page the RSC stream answers 200 with a `NEXT_HTTP_ERROR_FALLBACK;404` marker, which
-the CLI reports as not found.
+## Native commands and authentication
 
-**Fallback.** Immunefi also publishes `/public-api/bounties.json`: every program and competition
-in one JSON document (~1.3 MB compressed, ~6 MB decoded). It lacks the Resources tab (codebase and
-documentation links), vault data and a few rule fields, so it is not the primary source. When a
-page cannot be fetched or decoded (for example after a site redesign) and nothing is cached, the
-CLI falls back to it automatically. It caches the document for the same TTL and prints a notice
-saying which fields are missing.
+```sh
+bb immunefi programs --sort vault --json
+bb cantina programs --search uniswap --json
+bb cantina auth --firefox-profile auto --json
+bb program cantina:Uniswap all --firefox-profile auto --json
+immunefi program ssvnetwork scope
+cantina competition 'Revert v4lend Competition' all
+```
 
-| Source                     | Requests                | Has resources and vault | Format        |
-|----------------------------|-------------------------|-------------------------|---------------|
-| Page RSC stream (primary)  | 1 per list or detail    | yes                     | RSC flight    |
-| `public-api/bounties.json` | 1 for everything        | no                      | stable JSON   |
+Native commands preserve their provider's raw output and flags. `bb auth`, `bb leaderboard`,
+`bb import-page` and `bb opportunities` are Cantina-specific convenience routes; they reject an
+explicit Immunefi source. Firefox authentication remains scoped to Cantina; its cookies are never
+sent to Immunefi, explorers or RPCs. Authenticated responses are never cached. Use `--private`
+with a Cantina detail request only when that account already has participant access.
 
-Other endpoints the site calls (`/api/audit-competition/count`, `/public-api/bounties/assets/dice`)
-return a live/upcoming competition count and a random asset; neither is useful here.
+## Caching and migration
+
+The default cache is `~/.cache/bug-bounty-cli`, configurable with `BB_CACHE_DIR`, `XDG_CACHE_HOME`,
+or `--cache-dir`. Unified commands treat `--cache-dir` as the root:
+
+```text
+bug-bounty-cli/
+  immunefi/   # provider responses
+  cantina/    # provider responses
+  evm/        # shared source, ABI, explorer and chain metadata
+```
+
+```sh
+bb programs --refresh --json
+bb programs --offline --json
+bb cache info --json
+bb cache clear --source cantina   # only Cantina responses
+bb cache clear                    # all providers and shared EVM metadata
+```
+
+TTL defaults to 12 hours (`BB_CACHE_TTL_HOURS`, `--ttl HOURS`). Stale fallback and degraded sources
+produce warnings on stderr. Live state is not cached. A fresh combined result requires data from
+both selected sources; using `--source` lets you explicitly operate with only one provider.
+
+Existing `~/.cache/immunefi-cli` and `~/.cache/cantina-cli` directories are retained, not deleted or
+silently imported; the new package fetches into the unified cache. Native provider commands still
+honor their legacy provider cache environment variables. Native `--cache-dir` selects that
+provider's response directory directly, unlike unified `bb --cache-dir`, which selects the root.
+Native contract commands share the default EVM cache; use unified `bb contract` for a custom EVM
+cache root. The GitHub repository and local origin now use `victorl2/bug-bounty-cli`; old GitHub URLs redirect.
 
 ## Development
 
 ```sh
-python3 -m unittest discover -s tests
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+uv build
 ```
 
-## License
+Architecture:
 
-MIT. See [LICENSE](LICENSE).
+- `bb_cli/cli.py`, `sources.py`: routing, provider registry, normalization and global ordering.
+- `bb_cli/providers/immunefi/`, `providers/cantina/`: APIs, decoding, native filters and presentation.
+- `bb_cli/adapters.py`: provider scopes adapted to one EVM interface.
+- `bb_cli/evm/`: shared explorer/RPC/ABI/contract tools and terminal primitives.
+- `bb_cli/cache.py`, `rsc.py`, `paths.py`: shared storage, decoding and cache layout.
+- `immunefi_cli`, `cantina_cli`: compatibility import/entry-point shims, not duplicate engines.
+
+The 90-test deterministic suite passes and covers both providers and shared EVM behavior, plus aggregation, global
+limits, source collisions, provenance, routing conflicts, cache isolation and partial-failure handling.
+Provider references are retained in [docs/immunefi.md](docs/immunefi.md) and
+[docs/cantina.md](docs/cantina.md); their original standalone installation instructions are historical.
+
+MIT. See LICENSE.
+
+Live migration checks on 2026-10-29 passed for combined/source-specific discovery, details from
+both providers, Cantina's published leaderboard and Firefox authentication, source export and
+scope resolution from both providers. The shared engine confirmed Polymarket's Polygon deployment
+(15,007 bytes) and a historical Ethereum call at block 21,000,000. The built wheel was also exercised
+in isolation for combined cached discovery and both providers' cached contract scopes.

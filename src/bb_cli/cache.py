@@ -20,16 +20,14 @@ DEFAULT_TTL_HOURS = 12.0
 
 
 def default_cache_dir() -> Path:
-    if env := os.environ.get("IMMUNEFI_CACHE_DIR"):
-        return Path(env).expanduser()
-    base = os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
-    return Path(base).expanduser() / "immunefi-cli"
+    from .paths import cache_root
+    return cache_root()/'evm'
 
 
 def resolve_ttl_hours(requested: float | None) -> float:
     """Return the effective TTL, never below ``MIN_TTL_HOURS``."""
     if requested is None:
-        env = os.environ.get("IMMUNEFI_CACHE_TTL_HOURS")
+        env = (os.environ.get("BB_CACHE_TTL_HOURS") or os.environ.get("IMMUNEFI_CACHE_TTL_HOURS"))
         try:
             requested = float(env) if env else DEFAULT_TTL_HOURS
         except ValueError:

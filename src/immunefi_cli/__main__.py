@@ -1,3 +1,2 @@
-from immunefi_cli.cli import main
-
+from bb_cli.providers.immunefi.cli import main
 raise SystemExit(main())
