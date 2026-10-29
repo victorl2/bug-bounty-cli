@@ -180,3 +180,7 @@ return a live/upcoming competition count and a random asset; neither is useful h
 ```sh
 python3 -m unittest discover -s tests
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
