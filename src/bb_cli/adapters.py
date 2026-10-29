@@ -5,13 +5,14 @@ from .cache import Cache
 from .paths import cache_root
 from .evm.client import Client as EvmClient, FetchError
 
-def make_evm_client(args, source='immunefi'):
+def make_evm_client(args, source=None):
     from .providers.immunefi.cli import _make_client
     from .providers.cantina.client import Client as CantinaClient, CantinaError, firefox_cookie
     from .providers.cantina.cli import resolve_target
     from .providers.cantina.contracts import scope
     class Adapter(EvmClient):
         def detail(self,kind,target):
+            if source is None: raise ValueError('Scope lookups need a platform target')
             if source=='immunefi': return _make_client(args).detail(kind,target)
             try:
                 profile=getattr(args,'firefox_profile',None)

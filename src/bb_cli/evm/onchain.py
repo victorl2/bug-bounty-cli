@@ -1,6 +1,6 @@
 """Chooses the right explorer and node per chain, and caches what is safe to cache.
 
-Verified source, ABI and creation info are cached like the Immunefi data (10h+). Balances, calls
+Verified source, ABI and creation info are cached like opportunity data (10h+). Balances, calls
 and storage are live state: never cached, refused with ``--offline``.
 """
 
@@ -174,7 +174,7 @@ class OnChain:
                 candidates.append(qn)
         if mode == "quicknode" and not candidates:
             raise ChainError(f"QuickNode has no network for {chain.name} ({chain.id})" if self.quicknode
-                             else "QuickNode not found: install and log in to the `qn` CLI, or set CANTINA_QUICKNODE_URL")
+                             else "QuickNode not found: install and log in to the `qn` CLI, or set BB_QUICKNODE_URL")
         if mode in ("auto", "public"):
             candidates += [JsonRpc(url, f"{host_of(url)} RPC", archive=False) for url in chain.public_rpcs]
         if mode in ("auto", "explorer"):

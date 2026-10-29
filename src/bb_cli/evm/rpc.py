@@ -184,7 +184,7 @@ def _read_networks_file(path: Path) -> dict[str, str]:
 
 
 def _multichain_endpoint() -> str | None:
-    """HTTP URL of the account's multichain endpoint: $CANTINA_QUICKNODE_URL or `qn endpoint list`."""
+    """HTTP URL of the account's multichain endpoint: $BB_QUICKNODE_URL or `qn endpoint list`."""
     if env := (os.environ.get("BB_QUICKNODE_URL") or os.environ.get("IMMUNEFI_QUICKNODE_URL") or os.environ.get("CANTINA_QUICKNODE_URL")):
         return env
     if not shutil.which("qn"):

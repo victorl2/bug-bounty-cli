@@ -1,6 +1,6 @@
 """Shared cached HTTP support for the bundled explorer and EVM readers.
 
-Adapted from the MIT-licensed immunefi-cli; no Immunefi discovery requests.
+No platform requests are made here; providers adapt their scope data to this client.
 """
 from __future__ import annotations
 import gzip
@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Literal
 from bb_cli.cache import Cache, Entry
 
-BASE_URL = 'https://cantina.xyz'
 USER_AGENT = 'bug-bounty-cli/0.3.0'
 TIMEOUT_SECONDS = 30
 Kind = Literal['program','competition']

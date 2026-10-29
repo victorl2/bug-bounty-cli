@@ -40,7 +40,7 @@ def add_commands(sub: Any, common: argparse.ArgumentParser, make_client: ClientF
         aliases=["c"],
         help="inspect and read smart contracts (any EVM chain)",
         description="Verified source comes from Etherscan, the chain's own explorer or Sourcify and is "
-        "cached alongside Cantina metadata; balances, calls and storage come from a node (QuickNode, "
+        "cached; balances, calls and storage come from a node (QuickNode, "
         "--rpc, explorer or Etherscan) and are never cached.",
     )
     verbs = contract.add_subparsers(dest="verb", required=True, metavar="<action>")
@@ -81,8 +81,8 @@ def add_commands(sub: Any, common: argparse.ArgumentParser, make_client: ClientF
     p.set_defaults(handler=cmd_storage)
 
     p = verbs.add_parser("scope", parents=parents, help="resolve a program's in-scope contracts on their explorers")
-    p.add_argument("program", help="program or competition target / provider URL")
-    p.add_argument("--competition", action="store_true", help="the slug is an audit competition")
+    p.add_argument("program", help="program or competition: name, source:id or opportunity URL")
+    p.add_argument("--competition", action="store_true", help="the target is an audit competition")
     p.add_argument("--download", type=Path, metavar="DIR", help="also download verified sources (implementations too) into DIR")
     p.add_argument("--limit", type=int, help="only the first N contracts")
     p.add_argument("--no-live", action="store_true", help="skip the deployed-code check against a node")

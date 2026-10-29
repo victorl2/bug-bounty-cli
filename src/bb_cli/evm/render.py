@@ -102,7 +102,7 @@ def joined(values: Iterable[str] | None, limit: int = 0) -> str:
 
 
 def markdown(text: Any) -> str:
-    """Light cleanup of the markdown bodies Immunefi stores; keeps them readable as text."""
+    """Light cleanup of the markdown bodies platforms store; keeps them readable as text."""
     if not isinstance(text, str) or not text.strip() or text.strip() == "_blank_":
         return ""
     text = text.replace("\r\n", "\n").replace("\\\n", "\n").replace("&nbsp;", " ")

@@ -50,12 +50,12 @@ class UnifiedTests(unittest.TestCase):
             code,out,err=self.run_bb(['programs','--json'])
         self.assertEqual(code,1);self.assertEqual(out,'');self.assertIn('no partial',err)
     def test_native_provider_passthrough(self):
-        with patch.object(cli.PROVIDERS['cantina'],'main',return_value=0) as native:
+        with patch.object(cli.SOURCES['cantina'].native,'main',return_value=0) as native:
             self.assertEqual(cli.main(['cantina','auth','--firefox-profile','auto']),0)
             native.assert_called_once_with(['auth','--firefox-profile','auto'])
     def test_json_detail_keeps_provider_provenance(self):
         def native(argv):print(json.dumps({'id':'uuid','instructions':'rules'}));return 0
-        with patch.object(cli.PROVIDERS['cantina'],'main',side_effect=native):
+        with patch.object(cli.SOURCES['cantina'].native,'main',side_effect=native):
             code,out,err=self.run_bb(['program','cantina:Uniswap','all','--json'])
         self.assertEqual(code,0,err);self.assertEqual(json.loads(out)['source'],'cantina')
         self.assertEqual(json.loads(out)['data']['instructions'],'rules')
@@ -96,5 +96,39 @@ class UnifiedTests(unittest.TestCase):
         self.assertIs(sources.normalize('immunefi','program',IMM)['kyc'],False)
         self.assertIsNone(sources.normalize('cantina','program',{'id':'x'})['kyc'])
         self.assertEqual(sources.normalize('immunefi','program',IMM)['status'],'live')
+
+    def test_help_names_no_platform(self):
+        parser=cli.build_parser()
+        actions=parser._subparsers._group_actions[0].choices
+        texts=[parser.format_help()]+[actions[c].format_help() for c in ('programs','competitions','program','competition','contract','cache')]
+        for text in texts:
+            for source in sources.SOURCES.values():
+                self.assertNotIn(source.name.casefold(),text.casefold().replace('--source',''))
+    def test_platform_commands_route_by_capability(self):
+        with patch.object(cli.SOURCES['cantina'].native,'main',return_value=0) as native:
+            self.assertEqual(cli.main(['auth','--json']),0);native.assert_called_once_with(['auth','--json'])
+        code,_,err=self.run_bb(['--source','immunefi','auth'])
+        self.assertEqual(code,1);self.assertIn('not available on Immunefi',err)
+        code,_,err=self.run_bb(['program','immunefi:sky','--private'])
+        self.assertEqual(code,1);self.assertIn('--private is not available on Immunefi',err)
+    def test_bare_targets_resolve_across_platforms(self):
+        rows={('immunefi','program'):[('ssvnetwork','SSV Network',{'ssvnetwork','SSV Network'}),('same','Same',{'same','Same'})],
+              ('cantina','program'):[('f9df','Uniswap',{'f9df','Uniswap','uniswap'}),('c1','Same',{'c1','Same'})],
+              ('immunefi','competition'):[],('cantina','competition'):[('e27','Revert v4lend',{'e27','Revert v4lend'})]}
+        fake=lambda source,kind,args,root:rows[(source,kind)]
+        args=cli.build_parser().parse_args(['program','x'])
+        with patch('bb_cli.cli.candidates',side_effect=fake):
+            self.assertEqual(cli.resolve_target('uniswap','program',args,Path('/tmp')),('cantina','f9df'))
+            self.assertEqual(cli.resolve_target('ssv network','program',args,Path('/tmp')),('immunefi','ssvnetwork'))
+            with self.assertRaisesRegex(ValueError,'several programs.*immunefi:same.*cantina:c1'):
+                cli.resolve_target('Same','program',args,Path('/tmp'))
+            with self.assertRaisesRegex(LookupError,'is a competition: bb competition cantina:e27'):
+                cli.resolve_target('revert v4lend','program',args,Path('/tmp'))
+            with self.assertRaisesRegex(ValueError,'did you mean: Uniswap \\(cantina:f9df\\)'):
+                cli.resolve_target('Uniswapp','program',args,Path('/tmp'))
+    def test_bare_detail_target_is_routed_to_its_platform(self):
+        with patch('bb_cli.cli.resolve_target',return_value=('cantina','f9df')),patch.object(cli.SOURCES['cantina'].native,'main',return_value=0) as native:
+            self.assertEqual(cli.main(['program','Uniswap','scope']),0)
+        self.assertEqual(native.call_args.args[0][:3],['program','f9df','scope'])
 
 if __name__=='__main__':unittest.main()

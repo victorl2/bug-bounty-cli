@@ -138,6 +138,7 @@ def main(argv=None):
             is_comp='contest' in result.get('kind','') or cmd in ('competition','comp')
             if is_comp and any(s in names for s in ('leaderboard','all')):
                 result=dict(result,leaderboard=c.leaderboard(target))
+            record=result
             result=section(result,names[0]) if len(names)==1 else {s:section(result,s) for s in names}
 
         else:
@@ -161,6 +162,10 @@ def main(argv=None):
 
         for warning in c.warnings: print('Warning: '+warning,file=sys.stderr)
         if args.json: print(json.dumps(result,indent=2,ensure_ascii=False))
+        elif cmd in ('program','bounty','competition','comp'):
+            from bb_cli.evm import render as tables
+            from .detail import detail
+            sys.stdout.write(detail(record,names,tables.Style(tables.use_color(args.no_color))))
         elif isinstance(result,list) and result and all(isinstance(r,dict) and 'name' in r and 'id'in r for r in result):
             from bb_cli.evm import render as tables
             from .discovery import status

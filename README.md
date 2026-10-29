@@ -62,12 +62,19 @@ bb program immunefi:ssvnetwork all --json
 bb program cantina:Uniswap scope resources --json
 bb competition cantina:e7af4986-183d-4764-8bd2-1d6b47f87d99 leaderboard --json
 bb program https://immunefi.com/bug-bounty/ssvnetwork/information/ all
-bb program --source cantina Uniswap all
+bb program Uniswap scope                     # bare names are looked up on every platform
+bb program "SSV Network"
 ```
 
 A provider URL or `source:target` prefix chooses the provider. An explicit conflicting `--source`
-is rejected. Bare detail targets default to Immunefi for backward compatibility. Immunefi accepts
-slugs; Cantina accepts UUIDs, names and handles (with ambiguity errors and UUID suggestions).
+is rejected. A bare name, handle or id is looked up on every platform (or only the `--source` one)
+and must match exactly one opportunity: an ambiguous name lists the qualified targets to choose
+from, a typo gets close-match suggestions from all platforms, and a competition requested as a
+program (or the reverse) names the right command. `bb contract scope` resolves targets the same way.
+
+The terminal views of both platforms share one layout: overview facts, rewards per severity and
+asset group, scope tables, resources and links, and published leaderboards. `--json` output is
+unchanged.
 
 Sections: `overview`, `information`, `scope`, `resources`, `leaderboard` for competitions, and `all`.
 Source-specific detail behavior is preserved. Normalized detail JSON wraps the provider response
@@ -132,9 +139,10 @@ immunefi program ssvnetwork scope
 cantina competition 'Revert v4lend Competition' all
 ```
 
-Native commands preserve their provider's raw output and flags. `bb auth`, `bb leaderboard`,
-`bb import-page` and `bb opportunities` are Cantina-specific convenience routes; they reject an
-explicit Immunefi source. Firefox authentication remains scoped to Cantina; its cookies are never
+Native commands preserve their provider's raw output and flags. Commands only one platform offers
+(`bb sources` lists them; today `auth`, `leaderboard`, `import-page` and `opportunities`) are routed
+to that platform and rejected for an explicit `--source` that lacks them. They stay out of the
+top-level help, which never names a platform. Firefox authentication remains scoped to Cantina; its cookies are never
 sent to Immunefi, explorers or RPCs. Authenticated responses are never cached. Use `--private`
 with a Cantina detail request only when that account already has participant access.
 
@@ -185,7 +193,7 @@ Architecture:
 - `bb_cli/cache.py`, `rsc.py`, `paths.py`: shared storage, decoding and cache layout.
 - `immunefi_cli`, `cantina_cli`: compatibility import/entry-point shims, not duplicate engines.
 
-The 90-test deterministic suite passes and covers both providers and shared EVM behavior, plus aggregation, global
+The 96-test deterministic suite passes and covers both providers and shared EVM behavior, plus aggregation, global
 limits, source collisions, provenance, routing conflicts, cache isolation and partial-failure handling.
 Provider references are retained in [docs/immunefi.md](docs/immunefi.md) and
 [docs/cantina.md](docs/cantina.md); their original standalone installation instructions are historical.

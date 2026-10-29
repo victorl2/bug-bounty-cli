@@ -1,12 +1,56 @@
-"""Provider registry and the normalized discovery record used across sources."""
+"""Platform registry and the normalized discovery record used across sources.
+
+Everything platform-specific the unified CLI needs is declared here, so the router, help text and
+error messages stay generic and name a platform only when the user selected or targeted one.
+"""
 from argparse import Namespace
+from dataclasses import dataclass
+from types import ModuleType
 from .cache import Cache
 from .providers.immunefi import cli as immunefi_cli, render as immunefi_render
 from .providers.immunefi.client import Client as ImmunefiClient
 from .providers.cantina import cli as cantina_cli, discovery
 from .providers.cantina.client import Client as CantinaClient, firefox_cookie
 
-PROVIDERS={'immunefi':immunefi_cli,'cantina':cantina_cli}
+
+@dataclass(frozen=True)
+class Source:
+    id: str
+    name: str
+    site: str
+    hosts: tuple[str, ...]
+    native: ModuleType  # the platform's own CLI (``bb <id> ...``)
+    commands: tuple[str, ...] = ()  # platform-only commands also reachable as ``bb <command>``
+    features: tuple[str, ...] = ()  # optional capabilities: 'private', 'session'
+
+
+SOURCES = {s.id: s for s in (
+    Source('immunefi', 'Immunefi', 'https://immunefi.com', ('immunefi.com', 'www.immunefi.com'), immunefi_cli),
+    Source('cantina', 'Cantina', 'https://cantina.xyz', ('cantina.xyz', 'www.cantina.xyz'), cantina_cli,
+           commands=('auth', 'leaderboard', 'import-page', 'opportunities'), features=('private', 'session')),
+)}
+PROVIDERS = {sid: s.native for sid, s in SOURCES.items()}
+
+
+def source_for_host(host):
+    return next((s.id for s in SOURCES.values() if host in s.hosts), None)
+
+
+def supporting(feature=None, command=None):
+    return [s for s in SOURCES.values() if (feature and feature in s.features) or (command and command in s.commands)]
+
+
+def candidates(source, kind, args, cache_dir):
+    """Every opportunity of ``kind`` on ``source`` as (target id, display name, match keys)."""
+    if source == 'immunefi':
+        client = ImmunefiClient(Cache(cache_dir, args.ttl), refresh=args.refresh, offline=args.offline)
+        return [(r['slug'], r.get('project') or r['slug'], {r['slug'], r.get('project') or ''})
+                for r in client.listing(kind).data if r.get('slug')]
+    cookie = firefox_cookie(args.firefox_profile) if getattr(args, 'firefox_profile', None) else None
+    client = CantinaClient(cache_dir, args.refresh, args.offline, args.ttl, cookie)
+    contest = kind == 'competition'
+    return [(r['id'], r.get('name') or r['id'], {r['id'], r.get('name') or '', (r.get('company') or {}).get('handle') or ''})
+            for r in client.catalog() if ('contest' in (r.get('kind') or '')) == contest]
 
 
 def normalize(source, kind, record):
