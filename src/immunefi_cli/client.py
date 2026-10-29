@@ -36,7 +36,9 @@ _URL_RE = re.compile(r"(bug-bounty|audit-competition)/([^/?#]+)")
 
 
 class FetchError(RuntimeError):
-    pass
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status  # HTTP status, when the server answered
 
 
 class NotFoundError(FetchError):
@@ -65,8 +67,14 @@ def parse_target(value: str) -> tuple[Kind | None, str]:
 
 
 def _http_get(url: str, headers: dict[str, str] | None = None) -> str:
+    return http_request(url, headers)
+
+
+def http_request(url: str, headers: dict[str, str] | None = None, data: bytes | None = None) -> str:
+    """GET (or POST when ``data`` is given) returning the decoded body."""
     req = urllib.request.Request(
         url,
+        data=data,
         headers={
             "User-Agent": USER_AGENT,
             "Accept-Encoding": "gzip",
@@ -81,8 +89,8 @@ def _http_get(url: str, headers: dict[str, str] | None = None) -> str:
             return body.decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise NotFoundError(f"{url} returned 404") from exc
-        raise FetchError(f"{url} returned HTTP {exc.code}") from exc
+            raise NotFoundError(f"{url} returned 404", 404) from exc
+        raise FetchError(f"{url} returned HTTP {exc.code}", exc.code) from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise FetchError(f"could not reach {url}: {exc}") from exc
 
@@ -114,7 +122,7 @@ class Client:
         self.refresh = refresh
         self.offline = offline
 
-    def _cached(
+    def cached(
         self,
         key: str,
         url: str,
@@ -158,7 +166,7 @@ class Client:
                 raise rsc.PayloadError(f"unexpected JSON shape from {url}")
             return data
 
-        return self._cached("public-api", PUBLIC_API_URL, fetch)
+        return self.cached("public-api", PUBLIC_API_URL, fetch)
 
     def _listing_from_api(self, kind: Kind) -> Result:
         res = self.dataset()
@@ -181,7 +189,7 @@ class Client:
         def fetch(url: str) -> list[dict]:
             return _fetch_page(url).find("bounties", list)
 
-        return self._cached(
+        return self.cached(
             f"{kind}s",
             f"{BASE_URL}/{KIND_PATH[kind]}/",
             fetch,
@@ -198,7 +206,7 @@ class Client:
                 bounty["vaults"] = []
             return bounty
 
-        return self._cached(
+        return self.cached(
             f"{kind}/{slug}",
             f"{BASE_URL}/{KIND_PATH[kind]}/{slug}/information/",
             fetch,

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from immunefi_cli import __version__, render
+from immunefi_cli import __version__, contract_cli, render
 from immunefi_cli.cache import MIN_TTL_HOURS, Cache, default_cache_dir, resolve_ttl_hours
 from immunefi_cli.client import Client, FetchError, Kind, NotFoundError, Result, parse_target
 from immunefi_cli.rsc import PayloadError
@@ -105,6 +105,8 @@ def build_parser() -> argparse.ArgumentParser:
             help=f"one or more of: {', '.join(sections)}, all (default: overview)",
         )
         p.set_defaults(handler=cmd_detail, kind=kind, valid_sections=sections)
+
+    contract_cli.add_commands(sub, common, _make_client)
 
     p = sub.add_parser("cache", parents=[common], help="show or clear the local cache")
     p.add_argument("action", nargs="?", choices=["info", "clear"], default="info")

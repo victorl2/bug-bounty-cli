@@ -1,7 +1,7 @@
 [project]
 name = "immunefi-cli"
 version = "0.1.0"
-description = "Browse Immunefi bug-bounty programs and audit competitions from the terminal"
+description = "Browse Immunefi bug-bounty programs and audit competitions, and read their in-scope contracts on any EVM chain"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
