@@ -9,9 +9,10 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
+from bb_cli import __version__
 from bb_cli.cache import Cache, Entry
 
-USER_AGENT = 'bug-bounty-cli/0.3.0'
+USER_AGENT = f'bug-bounty-cli/{__version__}'
 TIMEOUT_SECONDS = 30
 Kind = Literal['program','competition']
 
