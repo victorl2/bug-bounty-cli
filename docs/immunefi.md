@@ -116,8 +116,8 @@ Behaviour verified against the live services:
 - **Not covered:** non-EVM assets (Starknet, Sui, Aptos, Stacks, ...) are skipped. A few explorers
   are offline or block API access; Sourcify still covers many of their contracts.
 
-The ABI codec and Keccak-256 are implemented in pure Python (no dependencies) and are tested
-against Foundry's `cast` output.
+ABI encoding, decoding and Keccak-256 come from [alloy](https://github.com/alloy-rs) and are
+tested against Foundry's `cast` output.
 
 ## Caching
 
