@@ -1,19 +1,9 @@
-# immunefi-cli
+# Immunefi commands
 
 Browse [Immunefi](https://immunefi.com) bug-bounty programs and audit competitions from the
-terminal, and read their in-scope smart contracts on any EVM chain. No runtime dependencies
-(Python 3.10+ standard library only).
-
-## Install
-
-```sh
-uv tool install git+https://github.com/victorl2/immunefi-cli   # or: pipx install git+https://...
-immunefi --help
-```
-
-From a local clone: `uv tool install --editable .` (or `pipx install -e .`).
-
-Without installing: `uv run immunefi ...` from this directory, or `PYTHONPATH=src python3 -m immunefi_cli ...`.
+terminal, and read their in-scope smart contracts on any EVM chain. These are Immunefi's own
+commands: run them as `bb immunefi ...` or with the `immunefi` command the installer adds next to
+`bb` (see the [README](../README.md#install)).
 
 ## Usage
 
@@ -178,9 +168,9 @@ return a live/upcoming competition count and a random asset; neither is useful h
 ## Development
 
 ```sh
-python3 -m unittest discover -s tests
+cargo test
 ```
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../LICENSE).

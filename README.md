@@ -1,32 +1,37 @@
 # bug-bounty-cli (`bb`)
 
 Discover and compare bug bounties and audit competitions across **Immunefi, Cantina, Sherlock and HackenProof**, retrieve
-rules and scope, and inspect in-scope EVM contracts. One package, a shared contract engine, no
-runtime dependencies; Python 3.10+.
-
-This project replaces the former `immunefi-cli` and incorporates `cantina-cli`. Existing Git history
-is retained at [victorl2/bug-bounty-cli](https://github.com/victorl2/bug-bounty-cli).
+rules and scope, and inspect in-scope EVM contracts. A single self-contained binary for macOS, Linux
+and Windows: nothing else to install, no runtime to set up.
 
 ## Install
 
+macOS and Linux:
+
 ```sh
-uv tool install git+https://github.com/victorl2/bug-bounty-cli
-# From a local clone: uv tool install --editable .
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/victorl2/bug-bounty-cli/releases/latest/download/bug-bounty-cli-installer.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/victorl2/bug-bounty-cli/releases/latest/download/bug-bounty-cli-installer.ps1 | iex"
+```
+
+The installer downloads the prebuilt binary for your platform from the
+[latest release](https://github.com/victorl2/bug-bounty-cli/releases/latest), places it in
+`~/.local/bin` (or `$XDG_BIN_HOME`) and adds that directory to your `PATH`. Archives for every
+platform, with checksums, are attached to each release if you prefer to install by hand. With a
+Rust toolchain you can also build from source: `cargo install --git https://github.com/victorl2/bug-bounty-cli`.
+
+```sh
 bb --help
 bb sources
 bb sites                                     # links to every platform's own listing pages
 ```
 
-The package installs `bb`, `bug-bounty`, and compatibility commands `immunefi` and `cantina`.
-When replacing separately installed old tools, uninstall their old distributions first:
-
-```sh
-uv tool uninstall immunefi-cli
-uv tool uninstall cantina-cli
-uv tool install --editable .
-```
-
-Without installing: `PYTHONPATH=src python3 -m bb_cli ...`.
+Besides `bb`, the release installs `bug-bounty` (the same command) and `immunefi` and `cantina`,
+which run `bb immunefi ...` and `bb cantina ...`.
 
 ## AI agent skill
 
@@ -179,7 +184,7 @@ top-level help, which never names a platform. Firefox authentication remains sco
 sent to Immunefi, explorers or RPCs. Authenticated responses are never cached. Use `--private`
 with a Cantina detail request only when that account already has participant access.
 
-## Caching and migration
+## Caching
 
 The default cache is `~/.cache/bug-bounty-cli`, configurable with `BB_CACHE_DIR`, `XDG_CACHE_HOME`,
 or `--cache-dir`. Unified commands treat `--cache-dir` as the root:
@@ -205,41 +210,47 @@ TTL defaults to 12 hours (`BB_CACHE_TTL_HOURS`, `--ttl HOURS`). Stale fallback a
 produce warnings on stderr. Live state is not cached. A fresh combined result requires data from
 every selected source; using `--source` lets you explicitly operate with only one provider.
 
-Existing `~/.cache/immunefi-cli` and `~/.cache/cantina-cli` directories are retained, not deleted or
-silently imported; the new package fetches into the unified cache. Native provider commands still
-honor their legacy provider cache environment variables. Native `--cache-dir` selects that
-provider's response directory directly, unlike unified `bb --cache-dir`, which selects the root.
-Native contract commands share the default EVM cache; use unified `bb contract` for a custom EVM
-cache root. The GitHub repository and local origin now use `victorl2/bug-bounty-cli`; old GitHub URLs redirect.
+Native provider commands still honor their legacy provider cache environment variables
+(`IMMUNEFI_CACHE_DIR`, `CANTINA_CACHE_DIR`). Native `--cache-dir` selects that provider's response
+directory directly, unlike unified `bb --cache-dir`, which selects the root. Native contract
+commands share the default EVM cache; use unified `bb contract` for a custom EVM cache root. Caches
+written by the earlier Python releases use the same layout and are reused as they are.
 
 ## Development
 
 ```sh
-PYTHONPATH=src python3 -m unittest discover -s tests -v
-uv build
+cargo build --release        # target/release/bb
+cargo test                   # unit tests plus end-to-end runs of the binary, all offline
+cargo clippy --all-targets
 ```
 
-Architecture:
+Architecture (`src/`):
 
-- `bb_cli/cli.py`, `sources.py`: routing, provider registry, normalization and global ordering.
-- `bb_cli/providers/immunefi/`, `providers/cantina/`: APIs, decoding, native filters and presentation.
-- `bb_cli/providers/sherlock/`, `providers/hackenproof/`: public JSON APIs and detail pages, served
-  in-process through the shared helpers in `providers/common.py` (cached GETs, filters, name lookup).
-  A new platform of this kind is one such package plus one `Source` entry in `sources.py`.
-- `bb_cli/adapters.py`: provider scopes adapted to one EVM interface.
-- `bb_cli/evm/`: shared explorer/RPC/ABI/contract tools and terminal primitives.
-- `bb_cli/cache.py`, `rsc.py`, `paths.py`: shared storage, decoding and cache layout.
-- `immunefi_cli`, `cantina_cli`: compatibility import/entry-point shims, not duplicate engines.
+- `cli.rs`, `sources.rs`: routing, platform registry, normalization and global ordering.
+- `providers/immunefi/`, `providers/cantina/`: APIs, page decoding, native filters, presentation
+  and each platform's own command line.
+- `providers/sherlock/`, `providers/hackenproof/`: public JSON APIs and detail pages, served through
+  the shared helpers in `providers/common.rs` (cached GETs, filters, name lookup). A new platform of
+  this kind is one such module plus one `Source` entry in `sources.rs`.
+- `evm/`: explorers, nodes, ABI encoding (via alloy) and the `bb contract` commands.
+- `cache.rs`, `http.rs`, `rsc.rs`, `render.rs`, `paths.rs`: storage, HTTP, Next.js payload decoding,
+  terminal tables and the cache layout.
+- `bin/`: the `bug-bounty`, `immunefi` and `cantina` launchers, which run the `bb` installed beside them.
 
-The 114-test deterministic suite passes and covers all providers and shared EVM behavior, plus aggregation, global
-limits, source collisions, provenance, routing conflicts, cache isolation and partial-failure handling.
-Provider references are retained in [docs/immunefi.md](docs/immunefi.md) and
-[docs/cantina.md](docs/cantina.md); their original standalone installation instructions are historical.
+Provider references are kept in [docs/immunefi.md](docs/immunefi.md) and
+[docs/cantina.md](docs/cantina.md).
+
+### Releases
+
+Releases are built by [cargo-dist](https://github.com/axodotdev/cargo-dist). Bump `version` in
+`Cargo.toml`, commit, and push a matching tag:
+
+```sh
+git tag v0.5.0 && git push origin v0.5.0
+```
+
+The release workflow then builds binaries for macOS (Apple Silicon and Intel), Linux (x86_64, also as a
+statically linked musl build, and ARM64) and Windows, and publishes them on a GitHub release together with the
+shell and PowerShell installers and checksums.
 
 MIT. See LICENSE.
-
-Live migration checks on 2026-10-29 passed for combined/source-specific discovery, details from
-both providers, Cantina's published leaderboard and Firefox authentication, source export and
-scope resolution from both providers. The shared engine confirmed Polymarket's Polygon deployment
-(15,007 bytes) and a historical Ethereum call at block 21,000,000. The built wheel was also exercised
-in isolation for combined cached discovery and both providers' cached contract scopes.

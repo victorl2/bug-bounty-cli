@@ -11,13 +11,15 @@ Nothing is ever signed or broadcast.
 
 ## Setup
 
-Check `bb --version`. If it is missing, install the CLI:
+Check `bb --version`. If it is missing, ask the user before installing it. The installer
+downloads a prebuilt binary into `~/.local/bin`; no runtime or toolchain is needed:
 
 ```sh
-uv tool install git+https://github.com/victorl2/bug-bounty-cli
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/victorl2/bug-bounty-cli/releases/latest/download/bug-bounty-cli-installer.sh | sh
 ```
 
-From a clone, run it without installing: `PYTHONPATH=src python3 -m bb_cli ...`. It needs Python 3.10 or later and has no dependencies.
+On Windows: `powershell -ExecutionPolicy Bypass -c "irm https://github.com/victorl2/bug-bounty-cli/releases/latest/download/bug-bounty-cli-installer.ps1 | iex"`.
+Inside a clone of the repository, `cargo run --release -- ARGS` runs it from source.
 
 `bb sources` lists the supported platforms. Help text never names a platform, so check there
 rather than assuming one.

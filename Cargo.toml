@@ -1,0 +1,69 @@
+[package]
+name = "bug-bounty-cli"
+version = "0.5.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Discover bug bounties and audit competitions across platforms, read their rules and scope, and inspect in-scope EVM contracts"
+license = "MIT"
+repository = "https://github.com/victorl2/bug-bounty-cli"
+readme = "README.md"
+keywords = ["bug-bounty", "security", "audit", "evm", "cli"]
+categories = ["command-line-utilities"]
+default-run = "bb"
+
+[lib]
+name = "bb_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bb"
+path = "src/main.rs"
+
+[[bin]]
+name = "bug-bounty"
+path = "src/bin/bug-bounty.rs"
+
+[[bin]]
+name = "immunefi"
+path = "src/bin/immunefi.rs"
+
+[[bin]]
+name = "cantina"
+path = "src/bin/cantina.rs"
+
+[dependencies]
+alloy-dyn-abi = "1.7.3"
+alloy-json-abi = "1.7.3"
+alloy-primitives = "1.7.3"
+chrono = "0.4.45"
+clap = { version = "4.6.7", features = ["derive", "env", "wrap_help"] }
+comfy-table = "8.0.1"
+dirs = "7.0.0"
+hex = "0.4.3"
+owo-colors = "4.4.0"
+regex = "1.13.1"
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+rust-ini = "0.21.3"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
+sha2 = "0.11.1"
+strsim = "0.11.1"
+tempfile = "3.27.0"
+terminal_size = "0.4.4"
+thiserror = "2.0.21"
+toml = "1.1.8"
+ureq = { version = "3.5.0", features = ["json", "gzip"] }
+url = "2.5.8"
+webbrowser = "1.2.5"
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+
+[target."cfg(unix)".dependencies]
+libc = "0.2.191"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"

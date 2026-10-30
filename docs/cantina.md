@@ -1,15 +1,8 @@
-# cantina-cli
+# Cantina commands
 
 Browse Cantina bounties and competitions, retrieve their rules, scope, resources and leaderboards,
-and inspect in-scope EVM contracts. Python 3.10+, standard library only. The EVM tooling is bundled;
-no Immunefi installation is required.
-
-```sh
-uv tool install --editable .
-cantina --help
-```
-
-Without installation: `PYTHONPATH=src python3 -m cantina_cli ...`.
+and inspect in-scope EVM contracts. These are Cantina's own commands: run them as `bb cantina ...`
+or with the `cantina` command the installer adds next to `bb` (see the [README](../README.md#install)).
 
 ## Discovery
 
@@ -145,12 +138,11 @@ Ethereum block 21,000,000 through QuickNode (`decimals` returned 6). Provider an
 can vary; per-contract errors and unsupported chains remain visible in results.
 
 ```sh
-PYTHONPATH=src python3 -m unittest discover -s tests -v
-uv build
+cargo test
 ```
 
-The 58 deterministic tests cover discovery/fallbacks, lifecycle status, names, filters, exclusions, auth isolation,
+The deterministic tests cover discovery/fallbacks, lifecycle status, names, filters, exclusions, auth isolation,
 cache semantics, ABI/Keccak vectors, proxies, provider retries, credential redaction, multicall,
 and historical/offline behavior. Live checks are documented separately from deterministic tests.
 
-MIT. See LICENSE. Bundled EVM modules retain attribution to the local MIT-licensed Immunefi CLI.
+MIT. See [LICENSE](../LICENSE).
