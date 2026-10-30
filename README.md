@@ -28,6 +28,17 @@ uv tool install --editable .
 
 Without installing: `PYTHONPATH=src python3 -m bb_cli ...`.
 
+## AI agent skill
+
+[skills/bug-bounty-cli/SKILL.md](skills/bug-bounty-cli/SKILL.md) teaches AI coding agents how to use
+`bb`: JSON-first commands, targets, filters, contract inspection and credential handling. Agents
+working inside this repository pick it up through `.claude/skills/`. To use it everywhere, copy it
+into your agent's skills directory:
+
+```sh
+cp -r skills/bug-bounty-cli ~/.claude/skills/
+```
+
 ## Compare sources
 
 ```sh
