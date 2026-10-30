@@ -2,31 +2,30 @@
 
 Browse [Immunefi](https://immunefi.com) bug-bounty programs and audit competitions from the
 terminal, and read their in-scope smart contracts on any EVM chain. These are Immunefi's own
-commands: run them as `bb immunefi ...` or with the `immunefi` command the installer adds next to
-`bb` (see the [README](../README.md#install)).
+commands: run them as `bb immunefi ...` (see the [README](../README.md#install) to install `bb`).
 
 ## Usage
 
 ```sh
 # Lists
-immunefi programs                                  # all active bug bounties, by max bounty
-immunefi programs -e ETH -l Solidity --min-bounty 100000 -n 20
-immunefi programs --search lido --sort updated
-immunefi competitions                              # all audit competitions, newest first
-immunefi competitions --status active              # upcoming + live
+bb immunefi programs                                  # all active bug bounties, by max bounty
+bb immunefi programs -e ETH -l Solidity --min-bounty 100000 -n 20
+bb immunefi programs --search lido --sort updated
+bb immunefi competitions                              # all audit competitions, newest first
+bb immunefi competitions --status active              # upcoming + live
 
 # Program details: overview (default), information, scope, resources, all
-immunefi program ssvnetwork
-immunefi program ssvnetwork scope resources
-immunefi program https://immunefi.com/bug-bounty/ssvnetwork/information/#top all
+bb immunefi program ssvnetwork
+bb immunefi program ssvnetwork scope resources
+bb immunefi program https://immunefi.com/bug-bounty/ssvnetwork/information/#top all
 
 # Competition details: same sections plus leaderboard
-immunefi competition audit-comp-quantus
-immunefi competition audit-comp-quantus information leaderboard
+bb immunefi competition audit-comp-quantus
+bb immunefi competition audit-comp-quantus information leaderboard
 
 # Machine-readable output
-immunefi programs --json | jq '.[].slug'
-immunefi program ssvnetwork --json | jq '.assets'
+bb immunefi programs --json | jq '.[].slug'
+bb immunefi program ssvnetwork --json | jq '.assets'
 ```
 
 | Section       | Contents                                                                                     |
@@ -41,7 +40,7 @@ Aliases: `bounties`/`ls` = `programs`, `comps` = `competitions`, `bounty` = `pro
 
 ## Smart contracts
 
-`immunefi contract` reads in-scope contracts on any EVM chain. It combines two kinds of source:
+`bb immunefi contract` reads in-scope contracts on any EVM chain. It combines two kinds of source:
 
 | Need | Sources, in order | Keys |
 |---|---|---|
@@ -49,26 +48,26 @@ Aliases: `bounties`/`ls` = `programs`, `comps` = `competitions`, `bounty` = `pro
 | Live state (balances, calls, storage) | your [QuickNode](https://www.quicknode.com) multichain endpoint → the chain's public RPC → the explorer's RPC → Etherscan's proxy | QuickNode via the `qn` CLI |
 | Historical state (`--block`) | QuickNode, or `--rpc <archive URL>` | |
 
-`immunefi contract chains` shows which source and node each of the ~130 known chains uses.
+`bb immunefi contract chains` shows which source and node each of the ~130 known chains uses.
 
 ```sh
 # A program's in-scope contracts: verified source, proxy -> implementation, deployed code
-immunefi contract scope ssvnetwork
-immunefi contract scope ssvnetwork --download ./ssv-src     # verified sources, implementations too
+bb immunefi contract scope ssvnetwork
+bb immunefi contract scope ssvnetwork --download ./ssv-src     # verified sources, implementations too
 
 # Any contract: an address (Ethereum by default) or an explorer URL, which selects the chain
-immunefi contract info https://etherscan.io/address/0xDD9BC35aE942eF0cFa76930954a156B3fF30a4E1
-immunefi contract info https://rootstock.blockscout.com/address/0xf773B590aF754D597770937Fa8ea7AbDf2668370
-immunefi contract info 0x... --chain arbitrum
-immunefi contract abi 0x...                                 # functions with selectors, events with topics
-immunefi contract source 0x... --impl -o ./impl             # proxy -> implementation source
+bb immunefi contract info https://etherscan.io/address/0xDD9BC35aE942eF0cFa76930954a156B3fF30a4E1
+bb immunefi contract info https://rootstock.blockscout.com/address/0xf773B590aF754D597770937Fa8ea7AbDf2668370
+bb immunefi contract info 0x... --chain arbitrum
+bb immunefi contract abi 0x...                                 # functions with selectors, events with topics
+bb immunefi contract source 0x... --impl -o ./impl             # proxy -> implementation source
 
 # Live and historical state
-immunefi contract read 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48     # every argument-less view function
-immunefi contract call 0xA0b8... balanceOf 0x28C6c06298d514Db089934071355E5743bf21d60
-immunefi contract call 0x4200000000000000000000000000000000000006 totalSupply --chain base --block 20000000
-immunefi contract call 0xA0b8... 0x313ce567                  # raw calldata, raw result
-immunefi contract storage 0x... implementation               # EIP-1967 slots, or any slot number
+bb immunefi contract read 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48     # every argument-less view function
+bb immunefi contract call 0xA0b8... balanceOf 0x28C6c06298d514Db089934071355E5743bf21d60
+bb immunefi contract call 0x4200000000000000000000000000000000000006 totalSupply --chain base --block 20000000
+bb immunefi contract call 0xA0b8... 0x313ce567                  # raw calldata, raw result
+bb immunefi contract storage 0x... implementation               # EIP-1967 slots, or any slot number
 ```
 
 ### Nodes and QuickNode
@@ -122,7 +121,7 @@ against Foundry's `cast` output.
 
 ## Caching
 
-Every list and detail page is cached as parsed JSON under `~/.cache/immunefi-cli`
+Every list and detail page is cached as parsed JSON under `~/.cache/bug-bounty-cli/immunefi`
 (`$XDG_CACHE_HOME` and `IMMUNEFI_CACHE_DIR` are honoured). Entries are reused for **12 hours** by
 default; the TTL can be raised with `--ttl HOURS` or `IMMUNEFI_CACHE_TTL_HOURS`, but never goes
 below **10 hours**.
@@ -130,7 +129,7 @@ below **10 hours**.
 - `--refresh` forces a re-fetch of what the command needs.
 - `--offline` only reads the cache.
 - If a fetch fails and an expired entry exists, the stale data is shown with a warning.
-- `immunefi cache` shows entries and their age; `immunefi cache clear` deletes them.
+- `bb immunefi cache` shows entries and their age; `bb immunefi cache clear` deletes them.
 
 Competition status is advanced by the competition's dates when shown from cache, so a cached
 `UPCOMING` competition reads as `LIVE` once its start date has passed.

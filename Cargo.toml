@@ -19,17 +19,8 @@ path = "src/lib.rs"
 name = "bb"
 path = "src/main.rs"
 
-[[bin]]
-name = "bug-bounty"
-path = "src/bin/bug-bounty.rs"
 
-[[bin]]
-name = "immunefi"
-path = "src/bin/immunefi.rs"
 
-[[bin]]
-name = "cantina"
-path = "src/bin/cantina.rs"
 
 [dependencies]
 alloy-dyn-abi = "1.7.3"

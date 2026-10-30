@@ -1,4 +1,4 @@
-//! Cantina's own command line: `bb cantina <command> ...` (also the `cantina` binary).
+//! Cantina's own command line: `bb cantina <command> ...`.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -22,7 +22,7 @@ use crate::util::close_matches;
 pub const SECTIONS: &[&str] = &["overview", "information", "scope", "resources", "leaderboard", "all"];
 
 #[derive(Parser, Debug)]
-#[command(name = "cantina", version, about = "Read-only Cantina opportunities, rewards, rules, scope and resources")]
+#[command(name = "bb cantina", version, about = "Read-only Cantina opportunities, rewards, rules, scope and resources")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -475,9 +475,9 @@ pub fn show_detail(kind: Kind, target: &str, sections: &[String], private: bool,
     Ok(0)
 }
 
-/// Entry point for `cantina ARGS` and `bb cantina ARGS` (`argv` excludes the program name).
+/// Entry point for `bb cantina ARGS` (`argv` excludes the program name).
 pub fn main(argv: Vec<OsString>) -> i32 {
-    let cli = match Cli::try_parse_from(std::iter::once(OsString::from("cantina")).chain(argv)) {
+    let cli = match Cli::try_parse_from(std::iter::once(OsString::from("bb cantina")).chain(argv)) {
         Ok(cli) => cli,
         Err(e) => {
             let _ = e.print();

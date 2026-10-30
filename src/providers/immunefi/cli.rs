@@ -1,4 +1,4 @@
-//! Immunefi's own command line: `bb immunefi <command> ...` (also the `immunefi` binary).
+//! Immunefi's own command line: `bb immunefi <command> ...`.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -19,7 +19,7 @@ use crate::util::{close_matches, dedupe};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "immunefi",
+    name = "bb immunefi",
     version,
     about = "Browse Immunefi bug-bounty programs and audit competitions. Data is cached locally for at least 10 hours."
 )]
@@ -286,7 +286,7 @@ fn suggest(client: &Client, kind: Kind, slug: &str) -> String {
         let slugs: Vec<String> = items.iter().map(|it| s(it, "slug").to_string()).collect();
         if k == other && slugs.iter().any(|x| x == slug) {
             let what = if k == Kind::Competition { "n audit" } else { " bug-bounty" };
-            return format!("'{slug}' is a{what} {k}: try `immunefi {k} {slug}`");
+            return format!("'{slug}' is a{what} {k}: try `bb immunefi {k} {slug}`");
         }
         hints.extend(close_matches(slug, slugs.iter().map(String::as_str), 3, 0.6).into_iter().map(str::to_string));
         let lower = slug.to_lowercase();
@@ -294,7 +294,7 @@ fn suggest(client: &Client, kind: Kind, slug: &str) -> String {
     }
     let hints: Vec<String> = dedupe(hints).into_iter().take(5).collect();
     if hints.is_empty() {
-        format!("run `immunefi {kind}s --search {slug}` to find it")
+        format!("run `bb immunefi {kind}s --search {slug}` to find it")
     } else {
         format!("did you mean: {}", hints.join(", "))
     }
@@ -424,9 +424,9 @@ fn run(cli: Cli) -> Result<i32> {
     }
 }
 
-/// Entry point for `immunefi ARGS` and `bb immunefi ARGS` (`argv` excludes the program name).
+/// Entry point for `bb immunefi ARGS` (`argv` excludes the program name).
 pub fn main(argv: Vec<OsString>) -> i32 {
-    let cli = match Cli::try_parse_from(std::iter::once(OsString::from("immunefi")).chain(argv)) {
+    let cli = match Cli::try_parse_from(std::iter::once(OsString::from("bb immunefi")).chain(argv)) {
         Ok(cli) => cli,
         Err(e) => {
             let _ = e.print();

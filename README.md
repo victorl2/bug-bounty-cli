@@ -30,8 +30,8 @@ bb sources
 bb sites                                     # links to every platform's own listing pages
 ```
 
-Besides `bb`, the release installs `bug-bounty` (the same command) and `immunefi` and `cantina`,
-which run `bb immunefi ...` and `bb cantina ...`.
+Everything runs through the single `bb` command; each platform's own commands are available as
+`bb immunefi ...` and `bb cantina ...`.
 
 ## AI agent skill
 
@@ -172,8 +172,8 @@ bb immunefi programs --sort vault --json
 bb cantina programs --search uniswap --json
 bb cantina auth --firefox-profile auto --json
 bb program cantina:Uniswap all --firefox-profile auto --json
-immunefi program ssvnetwork scope
-cantina competition 'Revert v4lend Competition' all
+bb immunefi program ssvnetwork scope
+bb cantina competition 'Revert v4lend Competition' all
 ```
 
 Native commands preserve their provider's raw output and flags. Sherlock and HackenProof have no
@@ -235,7 +235,6 @@ Architecture (`src/`):
 - `evm/`: explorers, nodes, ABI encoding (via alloy) and the `bb contract` commands.
 - `cache.rs`, `http.rs`, `rsc.rs`, `render.rs`, `paths.rs`: storage, HTTP, Next.js payload decoding,
   terminal tables and the cache layout.
-- `bin/`: the `bug-bounty`, `immunefi` and `cantina` launchers, which run the `bb` installed beside them.
 
 Provider references are kept in [docs/immunefi.md](docs/immunefi.md) and
 [docs/cantina.md](docs/cantina.md).

@@ -2,18 +2,18 @@
 
 Browse Cantina bounties and competitions, retrieve their rules, scope, resources and leaderboards,
 and inspect in-scope EVM contracts. These are Cantina's own commands: run them as `bb cantina ...`
-or with the `cantina` command the installer adds next to `bb` (see the [README](../README.md#install)).
+(see the [README](../README.md#install) to install `bb`).
 
 ## Discovery
 
 ```sh
-cantina programs
-cantina programs --search uniswap --min-bounty 1000000
-cantina programs -l Solidity -e ETH -t 'Smart Contract' --kyc yes -n 20 --json
-cantina programs --sort launched --reverse
-cantina competitions --status active --sort end
-cantina competitions --status finished --sort pool -n 10
-cantina opportunities --status ended
+bb cantina programs
+bb cantina programs --search uniswap --min-bounty 1000000
+bb cantina programs -l Solidity -e ETH -t 'Smart Contract' --kyc yes -n 20 --json
+bb cantina programs --sort launched --reverse
+bb cantina competitions --status active --sort end
+bb cantina competitions --status finished --sort pool -n 10
+bb cantina opportunities --status ended
 ```
 
 Aliases match Immunefi: `bounties`/`ls`, `comps`, `bounty`, `comp`, `c`.
@@ -35,10 +35,10 @@ an equivalent paused state; it cannot retrieve unpublished programs.
 ## Details
 
 ```sh
-cantina program Uniswap
-cantina program Uniswap information scope resources --json
-cantina competition 'Revert v4lend Competition' all --json
-cantina competition e7af4986-183d-4764-8bd2-1d6b47f87d99 leaderboard --json
+bb cantina program Uniswap
+bb cantina program Uniswap information scope resources --json
+bb cantina competition 'Revert v4lend Competition' all --json
+bb cantina competition e7af4986-183d-4764-8bd2-1d6b47f87d99 leaderboard --json
 ```
 
 Targets may be a UUID, Cantina URL, exact opportunity name, or company handle. Ambiguous names
@@ -58,18 +58,18 @@ errors are not mislabeled as unpublished results.
 ## Contract inspection
 
 ```sh
-cantina contract chains
-cantina contract scope Polymarket --limit 1 --rpc quicknode --json
-cantina contract scope Polymarket --no-live --download ./sources
-cantina contract info https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
-cantina contract abi 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain eth --json
-cantina contract source <explorer-url> --impl -o ./implementation
-cantina contract read <explorer-url> --rpc quicknode --block 21000000
-cantina contract call <address> 'balanceOf(address)(uint256)' <holder> --chain eth --rpc quicknode --block 21000000
-cantina contract storage <address> implementation --chain eth --rpc quicknode --block 21000000
+bb cantina contract chains
+bb cantina contract scope Polymarket --limit 1 --rpc quicknode --json
+bb cantina contract scope Polymarket --no-live --download ./sources
+bb cantina contract info https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+bb cantina contract abi 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain eth --json
+bb cantina contract source <explorer-url> --impl -o ./implementation
+bb cantina contract read <explorer-url> --rpc quicknode --block 21000000
+bb cantina contract call <address> 'balanceOf(address)(uint256)' <holder> --chain eth --rpc quicknode --block 21000000
+bb cantina contract storage <address> implementation --chain eth --rpc quicknode --block 21000000
 ```
 
-The bundled MIT-licensed engine is adapted from the sibling `immunefi-cli`. It supports explorer
+The contract engine is shared by every platform in `bb`. It supports explorer
 and Sourcify source/ABI lookup, proxy implementation resolution, verified source downloads,
 multicall getters, ABI encoding/decoding, raw calldata, storage slots, QuickNode discovery, and
 historical block selection. Historical flags pin RPC state; verified source and ABI metadata remain the explorer’s current metadata. `call` simulates with `eth_call`; nothing is signed or broadcast.
@@ -90,8 +90,8 @@ node; explorer/public latest-only fallbacks cannot silently answer historical qu
 ## Authentication
 
 ```sh
-cantina auth --firefox-profile auto --json
-cantina program Uniswap all --firefox-profile auto --json
+bb cantina auth --firefox-profile auto --json
+bb cantina program Uniswap all --firefox-profile auto --json
 ```
 
 `auto` selects the default profile from Firefox's `profiles.ini`; alternatively supply the path
@@ -108,8 +108,8 @@ responses are not persisted, so authenticated offline reads are unavailable by d
 
 ## Cache and resilience
 
-Public responses are cached for 12 hours under `~/.cache/cantina-cli`, with EVM metadata under
-`evm/`. Override with `CANTINA_CACHE_DIR`, `XDG_CACHE_HOME`, `--cache-dir`, `--ttl HOURS` or
+Public responses are cached for 12 hours under `~/.cache/bug-bounty-cli/cantina`, with EVM metadata
+under `~/.cache/bug-bounty-cli/evm`. Override with `CANTINA_CACHE_DIR`, `XDG_CACHE_HOME`, `--cache-dir`, `--ttl HOURS` or
 `CANTINA_CACHE_TTL_HOURS`. `cache info --json` includes timestamps and freshness for API and EVM
 metadata. `cache clear` clears both. Live state is never cached; offline mode refuses live reads.
 
@@ -118,7 +118,7 @@ retried with bounded backoff. Network failures can use stale entries with a warn
 opportunity API fails, the public repository catalog can supply a degraded listing; details can
 fall back to that catalog and then the page's RSC payload. These paths are labeled, since catalog
 entries can differ from the curated opportunity list. Authorization failures never use fallback
-success. `cantina import-page saved.html --json` also decodes saved page query data; a listing page
+success. `bb cantina import-page saved.html --json` also decodes saved page query data; a listing page
 contains only its initial page and is not a complete catalog.
 
 ## Validation and parity
