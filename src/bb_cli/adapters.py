@@ -14,6 +14,10 @@ def make_evm_client(args, source=None):
         def detail(self,kind,target):
             if source is None: raise ValueError('Scope lookups need a platform target')
             if source=='immunefi': return _make_client(args).detail(kind,target)
+            from .sources import SOURCES
+            if api:=SOURCES[source].api:
+                record=api.detail(kind,target,args,args.cache_dir)
+                return SimpleNamespace(data={'slug':record.get('slug') or record.get('id'),'project':record.get('title'),'assets':api.scope_assets(record)})
             try:
                 profile=getattr(args,'firefox_profile',None)
                 api=CantinaClient(args.cache_dir,args.refresh,args.offline,args.ttl,firefox_cookie(profile) if profile else None)

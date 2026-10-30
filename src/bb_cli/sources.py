@@ -11,6 +11,8 @@ from .providers.immunefi import cli as immunefi_cli, render as immunefi_render
 from .providers.immunefi.client import Client as ImmunefiClient
 from .providers.cantina import cli as cantina_cli, discovery
 from .providers.cantina.client import Client as CantinaClient, firefox_cookie
+from .providers.hackenproof import api as hackenproof_api
+from .providers.sherlock import api as sherlock_api
 
 
 @dataclass(frozen=True)
@@ -19,17 +21,25 @@ class Source:
     name: str
     site: str
     hosts: tuple[str, ...]
-    native: ModuleType  # the platform's own CLI (``bb <id> ...``)
+    listings: dict  # kind -> the platform's own page listing them
+    native: ModuleType | None = None  # the platform's own CLI (``bb <id> ...``), when it has one
+    api: ModuleType | None = None  # otherwise served in-process: listing, candidates, detail, render, scope_assets
     commands: tuple[str, ...] = ()  # platform-only commands also reachable as ``bb <command>``
     features: tuple[str, ...] = ()  # optional capabilities: 'private', 'session'
 
 
 SOURCES = {s.id: s for s in (
-    Source('immunefi', 'Immunefi', 'https://immunefi.com', ('immunefi.com', 'www.immunefi.com'), immunefi_cli),
-    Source('cantina', 'Cantina', 'https://cantina.xyz', ('cantina.xyz', 'www.cantina.xyz'), cantina_cli,
+    Source('immunefi', 'Immunefi', 'https://immunefi.com', ('immunefi.com', 'www.immunefi.com'),
+           {'program': 'https://immunefi.com/bug-bounty/', 'competition': 'https://immunefi.com/audit-competition/'}, immunefi_cli),
+    Source('cantina', 'Cantina', 'https://cantina.xyz', ('cantina.xyz', 'www.cantina.xyz'),
+           {'program': 'https://cantina.xyz/bounties', 'competition': 'https://cantina.xyz/competitions'}, cantina_cli,
            commands=('auth', 'leaderboard', 'import-page', 'opportunities'), features=('private', 'session')),
+    Source('sherlock', 'Sherlock', 'https://audits.sherlock.xyz', ('audits.sherlock.xyz', 'app.sherlock.xyz', 'sherlock.xyz', 'www.sherlock.xyz'),
+           {'program': 'https://audits.sherlock.xyz/bug-bounties', 'competition': 'https://audits.sherlock.xyz/contests'}, api=sherlock_api),
+    Source('hackenproof', 'HackenProof', 'https://hackenproof.com', ('hackenproof.com', 'www.hackenproof.com', 'dashboard.hackenproof.com'),
+           {'program': 'https://hackenproof.com/programs', 'competition': 'https://hackenproof.com/audit-programs'}, api=hackenproof_api),
 )}
-PROVIDERS = {sid: s.native for sid, s in SOURCES.items()}
+PROVIDERS = {sid: s.native for sid, s in SOURCES.items() if s.native}
 
 
 def source_for_host(host):
@@ -42,6 +52,8 @@ def supporting(feature=None, command=None):
 
 def candidates(source, kind, args, cache_dir):
     """Every opportunity of ``kind`` on ``source`` as (target id, display name, match keys)."""
+    if SOURCES[source].api:
+        return SOURCES[source].api.candidates(kind, args, cache_dir)
     if source == 'immunefi':
         client = ImmunefiClient(Cache(cache_dir, args.ttl), refresh=args.refresh, offline=args.offline)
         return [(r['slug'], r.get('project') or r['slug'], {r['slug'], r.get('project') or ''})
@@ -73,6 +85,8 @@ def normalize(source, kind, record):
 
 def listing(source,kind,args,cache_dir):
     """Apply native provider filters before the caller globally sorts and limits."""
+    if SOURCES[source].api:
+        return SOURCES[source].api.listing(kind,args,cache_dir)
     native=Namespace(**vars(args));native.limit=None;native.reverse=False
     if source=='immunefi':
         client=ImmunefiClient(Cache(cache_dir,args.ttl),refresh=args.refresh,offline=args.offline)

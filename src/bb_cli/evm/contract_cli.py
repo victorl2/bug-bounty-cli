@@ -479,9 +479,17 @@ def cmd_scope(args: argparse.Namespace, style: render.Style) -> int:
     non_evm = 0
     for asset in bounty.get("assets") or []:
         url = asset.get("url") or ""
-        if asset.get("type") != "smart_contract" or not (address := first_address(url)):
+        if asset.get("type") != "smart_contract" or not (address := first_address(asset.get("address") or url)):
             continue
-        if host_of(url) in NON_EVM_HOSTS:
+        if asset.get("chain"):  # the platform names the network instead of linking an explorer
+            try:
+                chain = es.resolve_chain(asset["chain"])
+            except (ValueError, ChainError):
+                unsupported.append((asset, address))
+                continue
+            asset = {**asset, "url": url or (f"{chain.explorer.rstrip('/')}/address/{address}" if chain.explorer else "")}
+            targets.append((asset, address, chain))
+        elif host_of(url) in NON_EVM_HOSTS:
             non_evm += 1
         elif chain := es.chain_for_url(url):
             targets.append((asset, address, chain))

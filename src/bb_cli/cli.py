@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from . import __version__
 from .paths import cache_root
 from .sources import SOURCES, candidates, listing, source_for_host, supporting
+from .providers.common import SECTIONS
 from .evm import contract_cli, render
 from .evm.client import FetchError
 
@@ -107,6 +108,11 @@ def build_parser():
     contract_cli.add_commands(sub,opts,lambda args:None)
     q=sub.add_parser('cache',help='show or clear cached responses');common(q);q.add_argument('action',choices=['info','clear'],default='info',nargs='?')
     q=sub.add_parser('sources',help='list supported platforms and their extra commands');q.add_argument('--json',action='store_true')
+    q=sub.add_parser('sites',aliases=['links'],help="links to each platform's own bounty and competition pages",
+                     description="Print the pages where each platform lists its bug bounties and audit competitions.")
+    q.add_argument('platforms',nargs='*',metavar='PLATFORM',help='only these platforms (default: all)')
+    q.add_argument('-k','--kind',choices=['programs','competitions'],help='only bounty or only competition pages')
+    q.add_argument('--open',action='store_true',help='open the pages in the default browser');q.add_argument('--json',action='store_true')
     return p
 
 
@@ -117,6 +123,7 @@ def _native(source,argv):
 def _detail(source,args,root):
     cmd='competition' if args.command in ('competition','comp') else 'program'
     platform=SOURCES[source]
+    if platform.api:return _served_detail(platform,cmd,args,root)
     argv=[cmd,args.target,*args.sections,'--cache-dir',str(root/source),'--ttl',str(args.ttl)]
     for flag in ['json','refresh','offline','no_color']:
         if getattr(args,flag):argv.append('--'+flag.replace('_','-'))
@@ -130,6 +137,34 @@ def _detail(source,args,root):
     if code:return code
     data=json.loads(buffer.getvalue())
     print(json.dumps({'source':source,'kind':cmd,'target':source+':'+args.target,'data':data},indent=2,ensure_ascii=False))
+    return 0
+
+
+def _served_detail(platform,cmd,args,root):
+    sections=args.sections or ['overview']
+    if bad:=[s for s in sections if s not in SECTIONS]:raise ValueError(f'Unknown section {bad[0]!r}; choose from: '+', '.join(SECTIONS))
+    if args.private:raise ValueError(f'--private is not available on {platform.name}')
+    record=platform.api.detail(cmd,args.target,args,root/platform.id)
+    if args.json:
+        uid=record.get('slug') or record.get('id')
+        print(json.dumps({'source':platform.id,'kind':cmd,'target':f'{platform.id}:{uid}','data':record},indent=2,ensure_ascii=False));return 0
+    sys.stdout.write(platform.api.render(record,sections,render.Style(render.use_color(args.no_color))))
+    return 0
+
+
+def _sites(args):
+    unknown=[p for p in args.platforms if p not in SOURCES]
+    if unknown:raise ValueError(f'Unknown platform {unknown[0]!r}; choose from: '+', '.join(SOURCES))
+    kinds=['program','competition'] if not args.kind else [args.kind[:-1]]
+    rows=[{'source':s.id,'name':s.name,'kind':k,'url':s.listings[k]} for s in SOURCES.values() if s.id in args.platforms or not args.platforms for k in kinds if s.listings.get(k)]
+    if args.open:
+        import webbrowser
+        for r in rows:webbrowser.open_new_tab(r['url'])
+    if args.json:print(json.dumps(rows,indent=2));return 0
+    style=render.Style(render.use_color(False))
+    label={'program':'bug bounties','competition':'competitions'}
+    print(render.table(['PLATFORM','LISTS','URL'],[[r['name'],label[r['kind']],r['url']] for r in rows],style,flex=1))
+    if args.open:print(f'\nOpened {len(rows)} page'+('s' if len(rows)!=1 else ''))
     return 0
 
 
@@ -163,7 +198,7 @@ def _sources(as_json):
     if as_json:print(json.dumps(result,indent=2));return 0
     rows=[[s['id'],s['name'],s['url'],', '.join(s['commands']) or '-'] for s in result]
     print(render.table(['ID','NAME','SITE','EXTRA COMMANDS'],rows,render.Style(render.use_color(False)),flex=3))
-    print('\nEvery platform also has its native interface: bb <id> --help')
+    print('\nbb <id> COMMAND runs a command on one platform only; `bb sites` links to their own listings.')
     return 0
 
 
@@ -208,10 +243,12 @@ def main(argv=None):
         if argv and argv[0] in SOURCES:
             source=argv.pop(0)
             if selected and selected!=source:raise ValueError('Native command conflicts with --source')
-            return _native(source,argv)
+            if SOURCES[source].native:return _native(source,argv)
+            selected=source  # no native interface: the shared commands, limited to this platform
         if argv and supporting(command=argv[0]):return _platform_command(argv[0],selected,argv)
         args=build_parser().parse_args(argv)
         if args.command=='sources':return _sources(args.json)
+        if args.command in ('sites','links'):return _sites(args)
         if args.refresh and args.offline:raise ValueError('--refresh and --offline cannot be combined')
         if not math.isfinite(args.ttl) or args.ttl<0:raise ValueError('TTL must be finite and nonnegative')
         if getattr(args,'limit',None) is not None and args.limit<=0:raise ValueError('Limit must be positive')

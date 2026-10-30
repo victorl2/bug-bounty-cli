@@ -29,7 +29,7 @@ class UnifiedTests(unittest.TestCase):
         def listing(source,kind,args,path):return [sources.normalize(source,kind,IMM if source=='immunefi' else CAN)]
         with patch('bb_cli.cli.listing',side_effect=listing):
             code,out,_=self.run_bb(['programs','--json'])
-        self.assertEqual(len(json.loads(out)),2)
+        self.assertEqual(len(json.loads(out)),len(cli.SOURCES))
     def test_explicit_source_and_namespaced_cache(self):
         with tempfile.TemporaryDirectory() as root,patch('bb_cli.cli.listing',return_value=[]) as listing:
             code,out,err=self.run_bb(['--source','cantina','programs','--cache-dir',root,'--json'])
@@ -115,7 +115,7 @@ class UnifiedTests(unittest.TestCase):
         rows={('immunefi','program'):[('ssvnetwork','SSV Network',{'ssvnetwork','SSV Network'}),('same','Same',{'same','Same'})],
               ('cantina','program'):[('f9df','Uniswap',{'f9df','Uniswap','uniswap'}),('c1','Same',{'c1','Same'})],
               ('immunefi','competition'):[],('cantina','competition'):[('e27','Revert v4lend',{'e27','Revert v4lend'})]}
-        fake=lambda source,kind,args,root:rows[(source,kind)]
+        fake=lambda source,kind,args,root:rows.get((source,kind),[])
         args=cli.build_parser().parse_args(['program','x'])
         with patch('bb_cli.cli.candidates',side_effect=fake):
             self.assertEqual(cli.resolve_target('uniswap','program',args,Path('/tmp')),('cantina','f9df'))

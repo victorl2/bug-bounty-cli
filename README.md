@@ -1,6 +1,6 @@
 # bug-bounty-cli (`bb`)
 
-Discover and compare bug bounties and audit competitions across **Immunefi and Cantina**, retrieve
+Discover and compare bug bounties and audit competitions across **Immunefi, Cantina, Sherlock and HackenProof**, retrieve
 rules and scope, and inspect in-scope EVM contracts. One package, a shared contract engine, no
 runtime dependencies; Python 3.10+.
 
@@ -14,6 +14,7 @@ uv tool install git+https://github.com/victorl2/bug-bounty-cli
 # From a local clone: uv tool install --editable .
 bb --help
 bb sources
+bb sites                                     # links to every platform's own listing pages
 ```
 
 The package installs `bb`, `bug-bounty`, and compatibility commands `immunefi` and `cantina`.
@@ -30,15 +31,17 @@ Without installing: `PYTHONPATH=src python3 -m bb_cli ...`.
 ## Compare sources
 
 ```sh
-bb programs                                  # both sources, sorted together by maximum reward
+bb programs                                  # every platform, sorted together by maximum reward
 bb programs --source immunefi --search lido
 bb --source cantina programs --min-bounty 1000000
+bb sherlock programs                         # same as --source sherlock
+bb hackenproof competitions --status all     # HackenProof audit programs
 bb programs -l Solidity -e ETH --kyc yes -n 20 --json
 bb competitions --status active --sort end
 bb competitions --source cantina --status finished --sort pool
 ```
 
-`--source immunefi|cantina|all` can appear before or after the command. Discovery defaults to all
+`--source immunefi|cantina|sherlock|hackenproof|all` can appear before or after the command. Discovery defaults to all
 sources. Results are filtered per source, then globally sorted and limited. The same project on
 two platforms stays as two records, because rules and scope can differ. If either selected source
 fails without usable fallback data, the command fails without printing a partial combined list.
@@ -46,8 +49,8 @@ fails without usable fallback data, the command fails without printing a partial
 Common filters: `--search`, `--ecosystem`, `--language`, `--type`, `--project-type`, `--kyc`,
 `--min-bounty`, `--status`, `--include-paused`. Sorts: `bounty`/`reward`/`pool`, `name`,
 `launched`/`start`, `end`, `updated`, `vault`; `--reverse` reverses order, `--limit` bounds output.
-Provider-specific sort/filter availability remains enforced. Select Immunefi for vault balances
-or project-type tags: Cantina publishes neither. Cantina's language/ecosystem filters use explicit
+Provider-specific sort/filter availability remains enforced. Select Immunefi for vault balances.
+A tag filter a platform has no tags for excludes its records, with a warning on stderr. Cantina's language/ecosystem filters use explicit
 reference evidence rather than a complete tag taxonomy. Unknown values stay unknown.
 
 Reward sorting compares published numeric maximums, **without exchange-rate conversion**. The
@@ -64,6 +67,9 @@ bb competition cantina:e7af4986-183d-4764-8bd2-1d6b47f87d99 leaderboard --json
 bb program https://immunefi.com/bug-bounty/ssvnetwork/information/ all
 bb program Uniswap scope                     # bare names are looked up on every platform
 bb program "SSV Network"
+bb program "Usual Labs" scope                # Sherlock bug bounty: contracts with their networks
+bb competition https://audits.sherlock.xyz/contests/1209 all
+bb program hackenproof:cetus-smart-contracts information leaderboard
 ```
 
 A provider URL or `source:target` prefix chooses the provider. An explicit conflicting `--source`
@@ -72,11 +78,12 @@ and must match exactly one opportunity: an ambiguous name lists the qualified ta
 from, a typo gets close-match suggestions from all platforms, and a competition requested as a
 program (or the reverse) names the right command. `bb contract scope` resolves targets the same way.
 
-The terminal views of both platforms share one layout: overview facts, rewards per severity and
+The terminal views of all platforms share one layout: overview facts, rewards per severity and
 asset group, scope tables, resources and links, and published leaderboards. `--json` output is
 unchanged.
 
-Sections: `overview`, `information`, `scope`, `resources`, `leaderboard` for competitions, and `all`.
+Sections: `overview`, `information`, `scope`, `resources`, `leaderboard`, and `all`. Leaderboards
+come from Cantina competitions and HackenProof programs; Sherlock publishes none through its API.
 Source-specific detail behavior is preserved. Normalized detail JSON wraps the provider response
 as `{"source": "cantina", "kind": "program", "target": "cantina:Uniswap", "data": {...}}`.
 
@@ -109,6 +116,8 @@ bb contract chains
 bb contract scope immunefi:ssvnetwork --rpc quicknode --limit 2 --json
 bb contract scope cantina:Polymarket --rpc quicknode --download ./sources --limit 2
 bb contract scope cantina:Polymarket --no-live --offline --json
+bb contract scope sherlock:56 --limit 3       # contracts listed by network, no explorer link needed
+bb contract scope hackenproof:layer3-smart-contracts
 bb contract info https://etherscan.io/address/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
 bb contract abi <address> --chain base --json
 bb contract source <explorer-url> --impl -o ./implementation
@@ -128,6 +137,14 @@ Use `ETHERSCAN_API_KEY` for supported explorer APIs. QuickNode is discovered thr
 accepted. Historical flags pin RPC state; source/ABI metadata still reflects current explorer
 metadata. Credentials never belong in reports, committed files, or command output.
 
+## Platform links
+
+```sh
+bb sites                                     # bug bounty and competition pages of every platform
+bb sites sherlock hackenproof -k programs    # only some platforms, only bounty pages
+bb links cantina --open                      # open them in the default browser
+```
+
 ## Native commands and authentication
 
 ```sh
@@ -139,7 +156,8 @@ immunefi program ssvnetwork scope
 cantina competition 'Revert v4lend Competition' all
 ```
 
-Native commands preserve their provider's raw output and flags. Commands only one platform offers
+Native commands preserve their provider's raw output and flags. Sherlock and HackenProof have no
+separate native interface: `bb sherlock COMMAND` is the shared command limited to that platform. Commands only one platform offers
 (`bb sources` lists them; today `auth`, `leaderboard`, `import-page` and `opportunities`) are routed
 to that platform and rejected for an explicit `--source` that lacks them. They stay out of the
 top-level help, which never names a platform. Firefox authentication remains scoped to Cantina; its cookies are never
@@ -155,6 +173,8 @@ or `--cache-dir`. Unified commands treat `--cache-dir` as the root:
 bug-bounty-cli/
   immunefi/   # provider responses
   cantina/    # provider responses
+  sherlock/
+  hackenproof/
   evm/        # shared source, ABI, explorer and chain metadata
 ```
 
@@ -168,7 +188,7 @@ bb cache clear                    # all providers and shared EVM metadata
 
 TTL defaults to 12 hours (`BB_CACHE_TTL_HOURS`, `--ttl HOURS`). Stale fallback and degraded sources
 produce warnings on stderr. Live state is not cached. A fresh combined result requires data from
-both selected sources; using `--source` lets you explicitly operate with only one provider.
+every selected source; using `--source` lets you explicitly operate with only one provider.
 
 Existing `~/.cache/immunefi-cli` and `~/.cache/cantina-cli` directories are retained, not deleted or
 silently imported; the new package fetches into the unified cache. Native provider commands still
@@ -188,12 +208,15 @@ Architecture:
 
 - `bb_cli/cli.py`, `sources.py`: routing, provider registry, normalization and global ordering.
 - `bb_cli/providers/immunefi/`, `providers/cantina/`: APIs, decoding, native filters and presentation.
+- `bb_cli/providers/sherlock/`, `providers/hackenproof/`: public JSON APIs and detail pages, served
+  in-process through the shared helpers in `providers/common.py` (cached GETs, filters, name lookup).
+  A new platform of this kind is one such package plus one `Source` entry in `sources.py`.
 - `bb_cli/adapters.py`: provider scopes adapted to one EVM interface.
 - `bb_cli/evm/`: shared explorer/RPC/ABI/contract tools and terminal primitives.
 - `bb_cli/cache.py`, `rsc.py`, `paths.py`: shared storage, decoding and cache layout.
 - `immunefi_cli`, `cantina_cli`: compatibility import/entry-point shims, not duplicate engines.
 
-The 96-test deterministic suite passes and covers both providers and shared EVM behavior, plus aggregation, global
+The 108-test deterministic suite passes and covers all providers and shared EVM behavior, plus aggregation, global
 limits, source collisions, provenance, routing conflicts, cache isolation and partial-failure handling.
 Provider references are retained in [docs/immunefi.md](docs/immunefi.md) and
 [docs/cantina.md](docs/cantina.md); their original standalone installation instructions are historical.
