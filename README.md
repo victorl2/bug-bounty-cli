@@ -218,6 +218,11 @@ directory directly, unlike unified `bb --cache-dir`, which selects the root. Nat
 commands share the default EVM cache; use unified `bb contract` for a custom EVM cache root. Caches
 written by the earlier Python releases use the same layout and are reused as they are.
 
+## Output
+
+Colours appear only on a terminal and are turned off by `--no-color` or `NO_COLOR`. Tables fit the
+terminal width; set `COLUMNS` to choose another width, for example when piping to a file.
+
 ## Development
 
 ```sh
