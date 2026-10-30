@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from bb_cli.evm.client import NotFoundError
 from bb_cli.evm.explorers import first_address
-from ..common import JsonApi, apply_filters, iso, pick, started
+from ..common import JsonApi, apply_filters, iso, lookup, started
 from .detail import render  # noqa: F401  (part of the provider interface)
 
 NAME = 'HackenProof'
@@ -59,8 +59,6 @@ def tags(row: dict) -> dict:
 
 
 def listing(kind: str, args, cache_dir) -> list[dict]:
-    if args.sort == 'vault':
-        raise ValueError(f'{NAME} publishes no vault balances; sort by bounty instead')
     return apply_filters([normalize(kind, r) for r in _records(kind, args, cache_dir)], args, kind, tags, NAME)
 
 
@@ -77,8 +75,7 @@ def identify(kind: str, target: str, args, cache_dir) -> str:
         if found != kind:
             raise LookupError(f'{target} is a {found}: bb {found} hackenproof:{match[2]}')
         return match[2]
-    rows = candidates(kind, args, cache_dir)
-    return target if target in {r[0] for r in rows} else pick(target, rows, kind, NAME)
+    return lookup('hackenproof', NAME, kind, target, lambda k: candidates(k, args, cache_dir))
 
 
 def detail(kind: str, target: str, args, cache_dir) -> dict:

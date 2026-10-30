@@ -64,7 +64,7 @@ def competition_status(item: dict) -> str:
 
 
 def program_status(item: dict) -> str:
-    return "PAUSED" if item.get("pausedAt") or item.get("isPaused") else "ACTIVE"
+    return "PAUSED" if item.get("pausedAt") or item.get("isPaused") else "LIVE"
 
 
 def program_table(items: list[dict], style: Style) -> str:

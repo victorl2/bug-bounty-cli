@@ -49,7 +49,7 @@ fails without usable fallback data, the command fails without printing a partial
 Common filters: `--search`, `--ecosystem`, `--language`, `--type`, `--project-type`, `--kyc`,
 `--min-bounty`, `--status`, `--include-paused`. Sorts: `bounty`/`reward`/`pool`, `name`,
 `launched`/`start`, `end`, `updated`, `vault`; `--reverse` reverses order, `--limit` bounds output.
-Provider-specific sort/filter availability remains enforced. Select Immunefi for vault balances.
+Provider-specific sort/filter availability remains enforced. `--sort vault` lists only platforms that publish vault balances (today Immunefi).
 A tag filter a platform has no tags for excludes its records, with a warning on stderr. Cantina's language/ecosystem filters use explicit
 reference evidence rather than a complete tag taxonomy. Unknown values stay unknown.
 
@@ -216,7 +216,7 @@ Architecture:
 - `bb_cli/cache.py`, `rsc.py`, `paths.py`: shared storage, decoding and cache layout.
 - `immunefi_cli`, `cantina_cli`: compatibility import/entry-point shims, not duplicate engines.
 
-The 108-test deterministic suite passes and covers all providers and shared EVM behavior, plus aggregation, global
+The 111-test deterministic suite passes and covers all providers and shared EVM behavior, plus aggregation, global
 limits, source collisions, provenance, routing conflicts, cache isolation and partial-failure handling.
 Provider references are retained in [docs/immunefi.md](docs/immunefi.md) and
 [docs/cantina.md](docs/cantina.md); their original standalone installation instructions are historical.

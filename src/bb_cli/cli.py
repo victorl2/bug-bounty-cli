@@ -194,7 +194,7 @@ def _cache(args,root,selected):
 
 
 def _sources(as_json):
-    result=[{'id':s.id,'name':s.name,'url':s.site,'commands':list(s.commands),'features':list(s.features)} for s in SOURCES.values()]
+    result=[{'id':s.id,'name':s.name,'url':s.site,'listings':s.listings,'commands':list(s.commands),'features':list(s.features)} for s in SOURCES.values()]
     if as_json:print(json.dumps(result,indent=2));return 0
     rows=[[s['id'],s['name'],s['url'],', '.join(s['commands']) or '-'] for s in result]
     print(render.table(['ID','NAME','SITE','EXTRA COMMANDS'],rows,render.Style(render.use_color(False)),flex=3))
@@ -214,6 +214,12 @@ def _platform_command(command,selected,argv):
 def _listing(args,selected,root):
     kind='competition' if args.command in ('competitions','comps') else 'program'
     sources=list(SOURCES) if selected in (None,'all') else [selected]
+    if args.sort=='vault':
+        if kind=='competition':raise ValueError('Vault balances exist for programs only; sort competitions by pool instead')
+        vaults=[s.id for s in supporting(feature='vault')]
+        if selected in SOURCES and selected not in vaults:raise ValueError(f'{SOURCES[selected].name} publishes no vault balances; sort by bounty instead')
+        if len(sources)>1:print('Warning: only '+', '.join(SOURCES[s].name for s in vaults)+' publishes vault balances; listing only those programs',file=sys.stderr)
+        sources=[s for s in sources if s in vaults]
     results=[]
     with ThreadPoolExecutor(max_workers=len(sources)) as pool:
         futures={source:pool.submit(listing,source,kind,args,root/source) for source in sources}

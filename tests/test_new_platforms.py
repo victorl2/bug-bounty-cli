@@ -148,6 +148,37 @@ class CommandTests(unittest.TestCase):
             code, _, err = self.run_bb(['program', 'sherlock:56', '--private'])
             self.assertIn('--private is not available on Sherlock', err)
 
+    def test_vault_sort_lists_only_platforms_with_vaults(self):
+        with patch('bb_cli.cli.listing', return_value=[]) as listing:
+            code, _, err = self.run_bb(['programs', '--sort', 'vault'])
+        self.assertEqual(code, 0)
+        self.assertEqual([c.args[0] for c in listing.call_args_list], ['immunefi'])
+        self.assertIn('only Immunefi publishes vault balances', err)
+        code, _, err = self.run_bb(['--source', 'sherlock', 'programs', '--sort', 'vault'])
+        self.assertIn('Sherlock publishes no vault balances', err)
+        code, _, err = self.run_bb(['competitions', '--sort', 'vault'])
+        self.assertIn('programs only', err)
+
+
+class LookupTests(unittest.TestCase):
+    def test_wrong_kind_names_the_right_command(self):
+        rows = {'program': [('56', 'Usual Labs', {'56', 'Usual Labs'})], 'competition': [('1209', 'Aave V4', {'1209', 'Aave V4'})]}
+        self.assertEqual(common.lookup('sherlock', 'Sherlock', 'program', '56', rows.get), '56')
+        with self.assertRaisesRegex(LookupError, "'1209' is a Sherlock competition: bb competition sherlock:1209"):
+            common.lookup('sherlock', 'Sherlock', 'program', '1209', rows.get)
+        with self.assertRaisesRegex(ValueError, 'No Sherlock competition named'):
+            common.lookup('sherlock', 'Sherlock', 'competition', 'nothing', rows.get)
+
+    def test_scope_explorers_for_new_platform_chains(self):
+        from bb_cli.evm.explorers import Registry
+        registry = Registry([])
+        for url, chain in (('https://explorer.cronos.com/address/0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23', 25),
+                           ('https://cronos.org/explorer/address/0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23', 25),
+                           ('https://explorer.zkevm.cronos.org/address/0xDA59Cc2Ee08ce5F830B1190bfed34415772Ddc57', 388),
+                           ('https://explorer.mainnet.citrea.xyz/address/0x3100000000000000000000000000000000000002', 4114)):
+            self.assertEqual(registry.for_url(url).id, chain)
+            self.assertTrue(registry.for_url(url).public_rpcs)
+
 
 if __name__ == '__main__':
     unittest.main()

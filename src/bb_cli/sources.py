@@ -25,12 +25,13 @@ class Source:
     native: ModuleType | None = None  # the platform's own CLI (``bb <id> ...``), when it has one
     api: ModuleType | None = None  # otherwise served in-process: listing, candidates, detail, render, scope_assets
     commands: tuple[str, ...] = ()  # platform-only commands also reachable as ``bb <command>``
-    features: tuple[str, ...] = ()  # optional capabilities: 'private', 'session'
+    features: tuple[str, ...] = ()  # optional capabilities: 'private', 'session', 'vault'
 
 
 SOURCES = {s.id: s for s in (
     Source('immunefi', 'Immunefi', 'https://immunefi.com', ('immunefi.com', 'www.immunefi.com'),
-           {'program': 'https://immunefi.com/bug-bounty/', 'competition': 'https://immunefi.com/audit-competition/'}, immunefi_cli),
+           {'program': 'https://immunefi.com/bug-bounty/', 'competition': 'https://immunefi.com/audit-competition/'}, immunefi_cli,
+           features=('vault',)),
     Source('cantina', 'Cantina', 'https://cantina.xyz', ('cantina.xyz', 'www.cantina.xyz'),
            {'program': 'https://cantina.xyz/bounties', 'competition': 'https://cantina.xyz/competitions'}, cantina_cli,
            commands=('auth', 'leaderboard', 'import-page', 'opportunities'), features=('private', 'session')),
@@ -68,7 +69,6 @@ def candidates(source, kind, args, cache_dir):
 def normalize(source, kind, record):
     if source=='immunefi':
         status=(immunefi_render.program_status(record) if kind=='program' else immunefi_render.competition_status(record)).lower()
-        if kind=='program' and status=='active': status='live'
         uid=record.get('slug')
         path='bug-bounty' if kind=='program' else 'audit-competition'
         return {'source':source,'id':uid,'target':source+':'+str(uid),'kind':kind,

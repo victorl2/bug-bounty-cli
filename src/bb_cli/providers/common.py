@@ -127,3 +127,16 @@ def rows_table(doc, headers: list[str], rows: list[list[str]], flex: int) -> Non
     from bb_cli.evm.render import table
     if rows:
         doc.raw('\n'.join('  ' + line for line in table(headers, rows, doc.style, flex=flex).splitlines()))
+
+
+def lookup(source: str, name: str, kind: str, value: str, candidates) -> str:
+    """``pick`` among ``candidates(kind)``; a value that names the other kind gets the right command."""
+    try:
+        return pick(value, candidates(kind), kind, name)
+    except ValueError:
+        other = 'competition' if kind == 'program' else 'program'
+        wanted = value.casefold()
+        for target, _, keys in candidates(other):
+            if wanted in {str(k).casefold() for k in keys if k}:
+                raise LookupError(f'{value!r} is a {name} {other}: bb {other} {source}:{target}') from None
+        raise
