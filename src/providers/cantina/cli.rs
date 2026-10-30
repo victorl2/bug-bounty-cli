@@ -58,27 +58,37 @@ pub struct ListArgs {
     /// Filter lifecycle status (default: current bounties; all competitions)
     #[arg(long, value_parser = ["live", "ended", "upcoming", "evaluating", "finished", "active", "all"])]
     pub status: Option<String>,
+    /// ecosystem tag, e.g. ETH, Solana, Base
     #[arg(short, long)]
     pub ecosystem: Option<String>,
+    /// language tag, e.g. Solidity, Rust, Move
     #[arg(short, long)]
     pub language: Option<String>,
+    /// program type tag
     #[arg(short = 't', long = "type")]
     pub program_type: Option<String>,
+    /// project type tag, e.g. Defi, Infrastructure
     #[arg(long)]
     pub project_type: Option<String>,
+    /// only opportunities that do / do not require KYC
     #[arg(long, value_parser = ["yes", "no"])]
     pub kyc: Option<String>,
+    /// reverse the sort order
     #[arg(short, long)]
     pub reverse: bool,
     /// Include paused records if Cantina publishes them
     #[arg(long)]
     pub include_paused: bool,
+    /// substring match on name or company
     #[arg(short, long, default_value = "")]
     pub search: String,
-    #[arg(long, default_value_t = 0.0)]
+    /// minimum total reward
+    #[arg(long, value_name = "AMOUNT", default_value_t = 0.0)]
     pub min_bounty: f64,
+    /// sort key
     #[arg(long, value_parser = ["reward", "bounty", "pool", "vault", "name", "updated", "launched", "start", "end"])]
     pub sort: Option<String>,
+    /// show at most N rows
     #[arg(short = 'n', long)]
     pub limit: Option<i64>,
     #[command(flatten)]
@@ -90,6 +100,7 @@ struct DetailArgs {
     /// Read participant repository details instead of public metadata
     #[arg(long)]
     private: bool,
+    /// UUID, name or opportunity URL
     target: String,
     /// overview, information, scope, resources, all
     #[arg(value_name = "SECTION")]
@@ -100,13 +111,18 @@ struct DetailArgs {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// list bug bounties and audit competitions together
     Opportunities(ListArgs),
+    /// list bug bounty programs
     #[command(visible_aliases = ["bounties", "ls"])]
     Programs(ListArgs),
+    /// list audit competitions
     #[command(visible_aliases = ["comps"])]
     Competitions(ListArgs),
+    /// show details of a bug bounty program
     #[command(visible_aliases = ["bounty"])]
     Program(DetailArgs),
+    /// show details of an audit competition
     #[command(visible_aliases = ["comp"])]
     Competition(DetailArgs),
     /// inspect and read smart contracts (any EVM chain)
@@ -115,14 +131,17 @@ enum Command {
         #[command(subcommand)]
         action: ContractCmd,
     },
+    /// check that the Cantina session is signed in
     Auth(Flags),
+    /// show the Cantina leaderboard
     Leaderboard(Flags),
-    /// Decode query data from saved Cantina HTML
+    /// decode query data from saved Cantina HTML
     ImportPage {
         file: PathBuf,
         #[command(flatten)]
         flags: Flags,
     },
+    /// show or clear the local cache
     Cache {
         #[arg(default_value = "info", value_parser = ["info", "clear"])]
         action: String,
