@@ -95,7 +95,7 @@ bb contract abi <address> --chain arbitrum --json
 bb contract source <explorer-url> --impl -o ./impl    # proxy -> implementation source
 bb contract read <address> --chain eth --json         # every argument-less view
 bb contract call <address> 'balanceOf(address)(uint256)' 0xHolder --chain eth
-bb contract storage <address> implementation --chain eth   # EIP-1967 slots, or a slot number
+bb contract storage <address> implementation --chain eth   # EIP-1967 (or ZeppelinOS) slots, or a slot number
 bb contract chains                                    # supported chains and providers
 ```
 

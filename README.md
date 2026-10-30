@@ -149,6 +149,8 @@ bb contract storage <address> implementation --chain eth --rpc quicknode --block
 Standalone contract commands are source-independent. Scope metadata comes from the chosen
 provider; verified source/ABI, proxy resolution, EIP-1967 reads, batched code checks, source downloads,
 getter multicalls, ABI encoding and historical RPC reads use the same implementation and cache.
+`storage` accepts `implementation`, `admin` and `beacon` for the EIP-1967 slots; when the first two
+are empty it reads the older ZeppelinOS slots that proxies such as USDC use.
 Contracts are never signed or broadcast. `--no-live` skips deployed-code checks; it can still fetch
 verified source. Source-only scopes do not imply deployed addresses or chains.
 

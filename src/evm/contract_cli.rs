@@ -11,7 +11,7 @@ use serde_json::{Map, Value, json};
 use super::abi::{self, Function};
 use super::client::Client;
 use super::explorers::{Chain, Contract, NON_EVM_HOSTS, first_address, host_of};
-use super::onchain::{OnChain, RPC_MODES, slot};
+use super::onchain::{OnChain, RPC_MODES, legacy_slot, slot};
 use crate::cache::Cache;
 use crate::error::{Error, Result};
 use crate::jv;
@@ -80,7 +80,8 @@ pub struct CallArgs {
 pub struct StorageArgs {
     /// address or explorer URL (e.g. https://etherscan.io/address/0x...)
     pub target: String,
-    /// slot number/hex, or implementation | admin | beacon (EIP-1967)
+    /// slot number/hex, or implementation | admin | beacon (EIP-1967; implementation and admin
+    /// fall back to the older ZeppelinOS slots when empty)
     pub slot: String,
     /// read N consecutive slots
     #[arg(short = 'n', long, default_value_t = 1)]
@@ -734,14 +735,26 @@ fn cmd_call(es: &OnChain, a: &CallArgs, style: &Style) -> Result<i32> {
 
 fn cmd_storage(es: &OnChain, a: &StorageArgs, style: &Style) -> Result<i32> {
     let (chain, address) = target(es, &a.target, &a.chain)?;
-    let start = match slot(&a.slot.to_lowercase()) {
+    let name = a.slot.to_lowercase();
+    let start = match slot(&name) {
         Some(s) => s,
         None => abi::parse_int(&a.slot)?.unsigned()?,
     };
+    let block = a.chain.block.as_deref();
     let mut rows = Vec::new();
     for i in 0..a.count.max(1) as u64 {
         let index = start.wrapping_add(U256::from(i));
-        rows.push((index, es.storage(&chain, &address, index, a.chain.block.as_deref())?));
+        rows.push((index, es.storage(&chain, &address, index, block)?));
+    }
+    let mut legacy = false;
+    if let (Some(old), [(_, word)]) = (legacy_slot(&name), rows.as_slice()) {
+        if word.iter().all(|b| *b == 0) {
+            let old_word = es.storage(&chain, &address, old, block)?;
+            if old_word.iter().any(|b| *b != 0) {
+                rows = vec![(old, old_word)];
+                legacy = true;
+            }
+        }
     }
     if a.common.json {
         let items: Vec<Value> = rows.iter().map(|(s, w)| json!({"slot": format!("{s:#x}"), "value": hex0x(w)})).collect();
@@ -750,6 +763,9 @@ fn cmd_storage(es: &OnChain, a: &StorageArgs, style: &Style) -> Result<i32> {
     for (index, word) in rows {
         let value = U256::from_be_bytes(word);
         let mut hints = Vec::new();
+        if legacy {
+            hints.push("ZeppelinOS slot,".to_string());
+        }
         if !value.is_zero() && value < (U256::from(1u8) << 160usize) && value >= (U256::from(1u8) << 128usize) {
             hints.push(format!("address {}", abi::word_address(&word)));
         } else if !value.is_zero() && value < (U256::from(1u8) << 128usize) {

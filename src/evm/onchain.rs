@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use alloy_dyn_abi::DynSolValue;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, U256, keccak256};
 use serde_json::{Map, Value, json};
 
 use super::abi::{self, Function};
@@ -36,6 +36,16 @@ pub fn slot(name: &str) -> Option<U256> {
         _ => return None,
     };
     U256::from_str_radix(hex, 16).ok()
+}
+
+/// The pre-EIP-1967 slot OpenZeppelin's ZeppelinOS proxies (USDC among them) use for `name`.
+pub fn legacy_slot(name: &str) -> Option<U256> {
+    let key = match name {
+        "implementation" => "org.zeppelinos.proxy.implementation",
+        "admin" => "org.zeppelinos.proxy.admin",
+        _ => return None,
+    };
+    Some(U256::from_be_bytes(keccak256(key).0))
 }
 
 /// Contract metadata from explorers, live state from nodes.
@@ -464,6 +474,14 @@ mod tests {
 
     fn word(n: u64) -> String {
         format!("0x{}", hex::encode(U256::from(n).to_be_bytes::<32>()))
+    }
+
+    #[test]
+    fn zeppelinos_slots() {
+        let hex = |name| legacy_slot(name).map(|s| format!("{s:#x}"));
+        assert_eq!(hex("implementation").unwrap(), "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3");
+        assert_eq!(hex("admin").unwrap(), "0x10d6a54a4754c8869d6886b5f5d7fbfa5b4522237ea5c60d11bc4e7a1ff9390b");
+        assert_eq!(hex("beacon"), None);
     }
 
     #[test]
