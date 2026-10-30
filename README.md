@@ -42,7 +42,11 @@ bb competitions --source cantina --status finished --sort pool
 ```
 
 `--source immunefi|cantina|sherlock|hackenproof|all` can appear before or after the command. Discovery defaults to all
-sources. Results are filtered per source, then globally sorted and limited. The same project on
+sources. Results are filtered per source, then globally sorted and limited: the terminal shows 25
+rows by default (`-n N` or `--all` for more), while `--json` returns every match. Programs default
+to live ones by top reward; competitions show live and upcoming ones first, then the most recent.
+Long UUID ids are shown as their first 8 characters (`cantina:f9df94db`), and any unique prefix is
+accepted wherever a target is. The same project on
 two platforms stays as two records, because rules and scope can differ. If either selected source
 fails without usable fallback data, the command fails without printing a partial combined list.
 
@@ -216,7 +220,7 @@ Architecture:
 - `bb_cli/cache.py`, `rsc.py`, `paths.py`: shared storage, decoding and cache layout.
 - `immunefi_cli`, `cantina_cli`: compatibility import/entry-point shims, not duplicate engines.
 
-The 111-test deterministic suite passes and covers all providers and shared EVM behavior, plus aggregation, global
+The 114-test deterministic suite passes and covers all providers and shared EVM behavior, plus aggregation, global
 limits, source collisions, provenance, routing conflicts, cache isolation and partial-failure handling.
 Provider references are retained in [docs/immunefi.md](docs/immunefi.md) and
 [docs/cantina.md](docs/cantina.md); their original standalone installation instructions are historical.

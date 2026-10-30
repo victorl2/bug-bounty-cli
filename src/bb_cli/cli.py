@@ -8,6 +8,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import sys
 import time
 from urllib.parse import urlparse
@@ -18,6 +19,8 @@ from .providers.common import SECTIONS
 from .evm import contract_cli, render
 from .evm.client import FetchError
 
+DEFAULT_ROWS = 25
+STATUS_ORDER = {'live':0,'upcoming':1,'evaluating':2,'finished':3}
 DETAIL_COMMANDS = ('program', 'bounty', 'competition', 'comp')
 SOURCE_HELP = 'platform to use: ' + ', '.join(SOURCES) + ' or all (see `bb sources`)'
 
@@ -54,6 +57,25 @@ def target_source(target,selected=None):
     return source or (selected if selected!='all' else None),value
 
 
+_UUID=re.compile(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',re.I)
+_PREFIX=re.compile(r'[0-9a-f]{6,}(?:-[0-9a-f-]*)?',re.I)
+
+
+def short(source,target):
+    """``source:id``, with a UUID cut to its first 8 characters (unique prefixes are accepted back)."""
+    return f'{source}:{target[:8]}' if _UUID.fullmatch(str(target)) else f'{source}:{target}'
+
+
+def expand_prefix(source,value,kind,args,root):
+    """A unique id prefix (as listings print it) becomes the full id; anything else is returned unchanged."""
+    if not _PREFIX.fullmatch(value) or _UUID.fullmatch(value):return value
+    ids=[t for k in (kind,'competition' if kind=='program' else 'program') for t,_,_ in candidates(source,k,args,root/source)]
+    if value in ids:return value
+    found=list(dict.fromkeys(t for t in ids if str(t).lower().startswith(value.lower())))
+    if len(found)>1:raise ValueError(f'{source}:{value} matches several ids; add more characters')
+    return found[0] if found else value
+
+
 def resolve_target(value,kind,args,root):
     """Find a bare name, handle or id on every platform; it must match exactly one opportunity."""
     wanted=value.casefold();matches=[];labels={};failures=[]
@@ -61,14 +83,14 @@ def resolve_target(value,kind,args,root):
         try:rows=candidates(sid,kind,args,root/sid)
         except (FetchError,ValueError,OSError) as exc:failures.append(f'{SOURCES[sid].name}: {exc}');continue
         for target,name,keys in rows:
-            labels.setdefault(name.casefold(),[]).append(f'{name} ({sid}:{target})')
+            labels.setdefault(name.casefold(),[]).append(f'{name} ({short(sid,target)})')
             if wanted in {k.casefold() for k in keys if k}:matches.append((sid,target,name))
     if len(matches)==1:return matches[0][:2]
-    if matches:raise ValueError(f'{value!r} matches several {kind}s; use one of: '+', '.join(f'{s}:{t} ({n})' for s,t,n in matches))
+    if matches:raise ValueError(f'{value!r} matches several {kind}s; use one of: '+', '.join(f'{short(s,t)} ({n})' for s,t,n in matches))
     other='program' if kind=='competition' else 'competition'
     if not failures:
         with contextlib.suppress(FetchError,ValueError,OSError):
-            elsewhere=[f'{sid}:{t}' for sid in SOURCES for t,_,keys in candidates(sid,other,args,root/sid) if wanted in {k.casefold() for k in keys if k}]
+            elsewhere=[short(sid,t) for sid in SOURCES for t,_,keys in candidates(sid,other,args,root/sid) if wanted in {k.casefold() for k in keys if k}]
             if elsewhere:raise LookupError(f'{value!r} is a {other}: bb {other} {elsewhere[0]}')
     hints=[label for key in difflib.get_close_matches(wanted,list(labels),n=3,cutoff=0.6) for label in labels[key]]
     message=f'No {kind} named {value!r}'+('; did you mean: '+', '.join(hints[:3]) if hints else f'; search with bb {kind}s -s TEXT')
@@ -77,12 +99,13 @@ def resolve_target(value,kind,args,root):
 
 
 def common(p):
+    p=p.add_argument_group('general options')
     p.add_argument('--json',action='store_true',help='machine-readable output')
     p.add_argument('--refresh',action='store_true',help='ignore the cache and fetch again')
     p.add_argument('--offline',action='store_true',help='use cached data only')
     p.add_argument('--ttl',type=float,default=float(os.getenv('BB_CACHE_TTL_HOURS','12')),metavar='HOURS',help='cache lifetime (default: 12)')
-    p.add_argument('--cache-dir',type=Path,help='cache root (one subdirectory per platform, plus evm/)')
-    p.add_argument('--no-color',action='store_true')
+    p.add_argument('--cache-dir',type=Path,metavar='DIR',help='cache root (one subdirectory per platform, plus evm/)')
+    p.add_argument('--no-color',action='store_true',help='plain output without colours')
     p.add_argument('--firefox-profile',default=os.getenv('BB_FIREFOX_PROFILE') or os.getenv('CANTINA_FIREFOX_PROFILE'),metavar='PATH|auto',help='Firefox profile with a signed-in session, for platforms that need one')
 
 
@@ -92,13 +115,26 @@ def build_parser():
     p.add_argument('--version',action='version',version='bb '+__version__)
     sub=p.add_subparsers(dest='command',required=True,metavar='<command>')
     for cmd,aliases,what in [('programs',['bounties','ls'],'list bug bounty programs'),('competitions',['comps'],'list audit competitions')]:
-        q=sub.add_parser(cmd,aliases=aliases,help=what,description=what.capitalize()+' from every platform, sorted together.');common(q)
-        q.add_argument('-s','--search',default='',help='text in the name, id or company');q.add_argument('-e','--ecosystem');q.add_argument('-l','--language')
-        q.add_argument('-t','--type',dest='program_type');q.add_argument('--project-type');q.add_argument('--kyc',choices=['yes','no'])
-        q.add_argument('--min-bounty',type=float,default=0,metavar='AMOUNT');q.add_argument('--include-paused',action='store_true')
-        q.add_argument('--status',choices=['active','upcoming','live','evaluating','finished','ended','all'])
-        q.add_argument('--sort',choices=['bounty','reward','pool','name','launched','start','end','updated','vault'],default='bounty' if cmd=='programs' else 'start')
-        q.add_argument('-r','--reverse',action='store_true');q.add_argument('-n','--limit',type=int)
+        default='live programs, highest reward first' if cmd=='programs' else 'live and upcoming first, then the most recent'
+        q=sub.add_parser(cmd,aliases=aliases,help=what,description=f'{what.capitalize()} from every platform, sorted together. Default: {default}.')
+        f=q.add_argument_group('filters')
+        f.add_argument('-s','--search',default='',metavar='TEXT',help='text in the name or id')
+        f.add_argument('-e','--ecosystem',metavar='NAME',help='chain or ecosystem tag, e.g. ethereum, solana')
+        f.add_argument('-l','--language',metavar='NAME',help='language tag, e.g. solidity, rust')
+        f.add_argument('-t','--type',dest='program_type',metavar='NAME',help='asset type tag, e.g. smart contract, websites')
+        f.add_argument('--project-type',metavar='NAME',help='project tag, e.g. defi, bridge')
+        f.add_argument('--kyc',choices=['yes','no'],help='only opportunities that require (yes) or do not require (no) KYC')
+        f.add_argument('--min-bounty',type=float,default=0,metavar='AMOUNT',help='minimum top reward, in its own currency')
+        f.add_argument('--status',choices=['active','upcoming','live','evaluating','finished','ended','all'],metavar='STATUS',
+                       help='live, upcoming, evaluating (judging) or finished; active = live + upcoming, ended = evaluating + finished, all')
+        f.add_argument('--include-paused',action='store_true',help='also show paused programs')
+        o=q.add_argument_group('output')
+        o.add_argument('--sort',choices=['bounty','reward','pool','name','launched','start','end','updated','vault'],metavar='KEY',
+                       help='bounty (= reward, pool), name, start (= launched), end, updated or vault')
+        o.add_argument('-r','--reverse',action='store_true',help='reverse the order')
+        o.add_argument('-n','--limit',type=int,metavar='N',help=f'rows to show (default {DEFAULT_ROWS}; JSON output is not limited)')
+        o.add_argument('-a','--all',action='store_true',help='show every matching row')
+        common(q)
     for cmd,aliases,what in [('program',['bounty'],'show a bug bounty program'),('competition',['comp'],'show an audit competition')]:
         q=sub.add_parser(cmd,aliases=aliases,help=what);common(q)
         q.add_argument('target',help='name, source:id or opportunity URL')
@@ -214,6 +250,8 @@ def _platform_command(command,selected,argv):
 def _listing(args,selected,root):
     kind='competition' if args.command in ('competitions','comps') else 'program'
     sources=list(SOURCES) if selected in (None,'all') else [selected]
+    default_order=args.sort is None
+    if default_order:args.sort='bounty' if kind=='program' else 'start'
     if args.sort=='vault':
         if kind=='competition':raise ValueError('Vault balances exist for programs only; sort competitions by pool instead')
         vaults=[s.id for s in supporting(feature='vault')]
@@ -233,13 +271,17 @@ def _listing(args,selected,root):
         if args.sort=='vault':return float(r['raw'].get('vaultBalance') or 0)
         return r.get({'launched':'start'}.get(args.sort,args.sort)) or ''
     results.sort(key=key,reverse=(args.sort!='name')!=args.reverse)
-    if args.limit:results=results[:args.limit]
+    if default_order and kind=='competition':  # stable: newest first within live, upcoming, judging, finished
+        results.sort(key=lambda r:STATUS_ORDER.get(r['status'],len(STATUS_ORDER)))
+    limit=None if args.all or (args.json and not args.limit) else args.limit or DEFAULT_ROWS
+    if limit:results=results[:limit]
     if args.json:print(json.dumps(results,indent=2,ensure_ascii=False));return 0
     if not results:print(f'No matching {kind}s.');return 0
     style=render.Style(render.use_color(args.no_color))
-    rows=[[r['name'] or '(restricted)',r['target'],r['status'].upper(),render.money(float(r['reward']))+' '+str(r['currency'] or ''),'?' if r['kyc'] is None else 'yes' if r['kyc'] else 'no'] for r in results]
+    rows=[[r['name'] or '(restricted)',short(r['source'],r['id']),r['status'].upper(),render.money(float(r['reward']))+' '+str(r['currency'] or ''),'?' if r['kyc'] is None else 'yes' if r['kyc'] else 'no'] for r in results]
     print(render.table(['PROJECT','TARGET','STATUS','REWARD','KYC'],rows,style,flex=0,styler={2:style.status}))
-    print(f'\n{len(results)} of {total} matching {kind}s')
+    more=f'  (-n N or --all for more)' if len(results)<total else ''
+    print(f'\n{len(results)} of {total} matching {kind}s{more}')
     return 0
 
 
@@ -263,6 +305,7 @@ def main(argv=None):
         if args.command=='cache':return _cache(args,root,selected)
         if args.command in DETAIL_COMMANDS:
             source,args.target=target_source(args.target,selected)
+            if source:args.target=expand_prefix(source,args.target,'competition' if args.command in ('competition','comp') else 'program',args,root)
             if source is None:source,args.target=resolve_target(args.target,'competition' if args.command in ('competition','comp') else 'program',args,root)
             return _detail(source,args,root)
         if args.command in ('contract','c'):
@@ -270,6 +313,7 @@ def main(argv=None):
             source=None  # standalone EVM reads need no platform
             if args.verb=='scope':
                 source,args.program=target_source(args.program,selected)
+                if source:args.program=expand_prefix(source,args.program,'competition' if args.competition else 'program',args,root)
                 if source is None:source,args.program=resolve_target(args.program,'competition' if args.competition else 'program',args,root)
             args.cache_dir=root/(source or 'evm');args.evm_cache_dir=root/'evm'
             args.make_client=lambda a:make_evm_client(a,source)

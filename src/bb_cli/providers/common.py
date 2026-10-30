@@ -65,6 +65,7 @@ def started(start: str | None) -> bool:
     return not start or start <= datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
+LABELS = {'ecosystem': 'ecosystem', 'language': 'language', 'program_type': 'asset type', 'project_type': 'project type'}
 TAG_FILTERS = (('ecosystem', 'ecosystem'), ('language', 'language'), ('program_type', 'type'), ('project_type', 'project'))
 
 
@@ -98,7 +99,7 @@ def apply_filters(rows: list[dict], args, kind: str, tags, name: str) -> list[di
         if not needle:
             continue
         if not any(tags(r).get(category) for r in out):
-            print(f'Warning: {name} publishes no {option.replace("_", "-")} tags for {kind}s; they are excluded', file=sys.stderr)
+            print(f'Note: {name} has no {LABELS[option]} tags; its {kind}s are left out', file=sys.stderr)
         out = [r for r in out if any(needle.casefold() in str(t).casefold() for t in tags(r).get(category) or [])]
     return out
 

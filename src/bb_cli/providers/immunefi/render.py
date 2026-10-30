@@ -200,7 +200,6 @@ def section_overview(doc: Doc, kind: str, b: dict) -> None:
         ("Product type", joined(tags.get("productType"))),
         ("Ecosystem", joined(tags.get("ecosystem"), 12)),
         ("Language", joined(tags.get("language"))),
-        ("Features", joined(b.get("features"))),
         ("Website", b.get("websiteUrl") or ""),
         ("GitHub", b.get("githubUrl") or ""),
     ]

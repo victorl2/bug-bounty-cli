@@ -77,7 +77,7 @@ class FilterTests(unittest.TestCase):
         with contextlib.redirect_stderr(err):
             rows = common.apply_filters([sherlock.normalize('program', BOUNTY)], args('programs', '-l', 'rust'), 'program', sherlock.tags, 'Sherlock')
         self.assertEqual(rows, [])
-        self.assertIn('Sherlock publishes no language tags for programs', err.getvalue())
+        self.assertIn('Sherlock has no language tags; its programs are left out', err.getvalue())
 
     def test_pick_by_name_with_hints(self):
         rows = [('56', 'Usual Labs', {'56', 'Usual Labs'}), ('300', 'Aave V4', {'300', 'Aave V4'})]
@@ -158,6 +158,39 @@ class CommandTests(unittest.TestCase):
         self.assertIn('Sherlock publishes no vault balances', err)
         code, _, err = self.run_bb(['competitions', '--sort', 'vault'])
         self.assertIn('programs only', err)
+
+    def test_default_limit_and_hint(self):
+        rows = [sherlock.normalize('program', dict(BOUNTY, id=i, payout=i)) for i in range(1, 31)]
+        with patch('bb_cli.cli.listing', side_effect=lambda source, *a: rows if source == 'sherlock' else []):
+            _, out, _ = self.run_bb(['programs'])
+            self.assertEqual(out.count('sherlock:'), cli.DEFAULT_ROWS)
+            self.assertIn('25 of 30 matching programs  (-n N or --all for more)', out)
+            _, out, _ = self.run_bb(['programs', '--all'])
+            self.assertEqual(out.count('sherlock:'), 30)
+            self.assertNotIn('--all for more', out)
+            _, out, _ = self.run_bb(['programs', '--json'])
+            self.assertEqual(len(json.loads(out)), 30)
+
+    def test_competitions_default_to_live_first(self):
+        contests = [sherlock.normalize('competition', dict(CONTEST, id=1, status='FINISHED', starts_at=NOW - 10)),
+                    sherlock.normalize('competition', dict(CONTEST, id=2, status='RUNNING', starts_at=NOW - 99999))]
+        with patch('bb_cli.cli.listing', side_effect=lambda source, *a: contests if source == 'sherlock' else []):
+            _, out, _ = self.run_bb(['competitions', '--json'])
+            self.assertEqual([r['id'] for r in json.loads(out)], ['2', '1'])
+            _, out, _ = self.run_bb(['competitions', '--sort', 'start', '--json'])
+            self.assertEqual([r['id'] for r in json.loads(out)], ['1', '2'])
+
+    def test_short_uuid_targets_round_trip(self):
+        uid = 'f9df94db-c7b1-434b-bb06-d1360abdd1be'
+        self.assertEqual(cli.short('cantina', uid), 'cantina:f9df94db')
+        self.assertEqual(cli.short('immunefi', 'sky'), 'immunefi:sky')
+        rows = {'program': [(uid, 'Uniswap', set()), ('f9df94aa-0000-0000-0000-000000000000', 'Other', set())], 'competition': []}
+        expand = lambda value: cli.expand_prefix('cantina', value, 'program', args(), cli.Path('/tmp'))
+        with patch('bb_cli.cli.candidates', side_effect=lambda source, kind, *a: rows[kind]):
+            self.assertEqual(expand('f9df94db'), uid)
+            with self.assertRaisesRegex(ValueError, 'matches several ids'):
+                expand('f9df94')
+        self.assertEqual(cli.expand_prefix('immunefi', 'sky', 'program', args(), cli.Path('/tmp')), 'sky')
 
 
 class LookupTests(unittest.TestCase):

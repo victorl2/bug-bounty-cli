@@ -129,12 +129,6 @@ def _note_source(result: Result, args: argparse.Namespace) -> None:
             "(public API fallback: codebase/documentation links, vault and some rule fields are unavailable)",
             file=sys.stderr,
         )
-    if args.json:
-        return
-    if result.from_cache:
-        state = "stale cache" if result.stale else "cache"
-        age = render.duration(result.entry.age_seconds)
-        print(f"({state}, fetched {age} ago; --refresh to update)", file=sys.stderr)
 
 
 def _tag_match(values: Any, needle: str) -> bool:

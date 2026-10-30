@@ -88,13 +88,14 @@ def listing(source,kind,args,cache_dir):
     if SOURCES[source].api:
         return SOURCES[source].api.listing(kind,args,cache_dir)
     native=Namespace(**vars(args));native.limit=None;native.reverse=False
+    native.sort=args.sort or ('bounty' if kind=='program' else 'start')
     if source=='immunefi':
         client=ImmunefiClient(Cache(cache_dir,args.ttl),refresh=args.refresh,offline=args.offline)
         native.kind=kind
-        native.sort={'reward':'bounty' if kind=='program' else 'pool','pool':'bounty' if kind=='program' else 'pool','bounty':'bounty' if kind=='program' else 'pool','start':'launched' if kind=='program' else 'start','launched':'launched' if kind=='program' else 'start'}.get(args.sort,args.sort)
+        native.sort={'reward':'bounty' if kind=='program' else 'pool','pool':'bounty' if kind=='program' else 'pool','bounty':'bounty' if kind=='program' else 'pool','start':'launched' if kind=='program' else 'start','launched':'launched' if kind=='program' else 'start'}.get(native.sort,native.sort)
         sorts=immunefi_cli.PROGRAM_SORTS if kind=='program' else immunefi_cli.COMPETITION_SORTS
         if native.sort not in sorts:
-            raise ValueError(f'{source} does not support {args.sort!r} sorting for {kind}s')
+            raise ValueError(f'{native.sort!r} sorting is not available for {kind}s')
         if args.status in ('all','ended'): native.status=None
         elif args.status=='evaluating':native.status='evaluating'
         native.search=args.search or None
@@ -116,11 +117,8 @@ def listing(source,kind,args,cache_dir):
     if any([args.language,args.ecosystem,args.program_type,args.project_type]):
         extra={r['id']:r for r in client.catalog()}
         records=[{**extra.get(r['id'],{}),**r} for r in records]
-        client.warnings.append('Cantina tag filters use explicit tags and reference evidence, not a complete provider taxonomy')
-    if args.sort=='updated' and not any(r.get('updatedAt') for r in records):
-        client.warnings.append('Cantina publishes no update timestamps; normalized updated values remain unknown')
-    if args.include_paused:
-        client.warnings.append('Cantina publishes no equivalent paused state')
+    if native.sort=='updated' and not any(r.get('updatedAt') for r in records):
+        client.warnings.append('Cantina has no update dates; its records sort last')
     records=discovery.apply(records,native)
     import sys
     for warning in client.warnings: print('Warning: '+warning,file=sys.stderr)
