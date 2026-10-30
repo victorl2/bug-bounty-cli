@@ -4,7 +4,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, FromArgMatches, Parser, Subcommand};
 use regex::Regex;
 use serde_json::{Value, json};
 
@@ -627,6 +627,7 @@ fn validate(common: &mut Common) -> Result<PathBuf> {
 
 fn run(argv: Vec<String>) -> Result<i32> {
     let (mut selected, mut argv) = extract_source(argv)?;
+    let mut as_command = false;
     if let Some(first) = argv.first().cloned() {
         if let Some(platform) = sources::get(&first) {
             argv.remove(0);
@@ -637,6 +638,7 @@ fn run(argv: Vec<String>) -> Result<i32> {
                 return Ok(native(argv.into_iter().map(OsString::from).collect()));
             }
             selected = Some(platform.id.to_string()); // no native interface: the shared commands, limited to this platform
+            as_command = true;
         }
     }
     if let Some(first) = argv.first().cloned() {
@@ -644,7 +646,29 @@ fn run(argv: Vec<String>) -> Result<i32> {
             return platform_command(&first, selected.as_deref(), argv);
         }
     }
-    let cli = match Cli::try_parse_from(std::iter::once("bb".to_string()).chain(argv)) {
+    let mut command = Cli::command();
+    if let Some(platform) = selected.as_deref().and_then(sources::get) {
+        if as_command {
+            command = command
+                .bin_name(format!("bb {}", platform.id))
+                .about(format!("The shared bb commands, limited to {}.", platform.name))
+                .after_help("Targets accept a name, an id from a listing, or the opportunity URL.");
+        }
+        for sub in ["programs", "competitions"] {
+            command = command.mut_subcommand(sub, |c| {
+                let help = c
+                    .get_before_help()
+                    .map(|h| h.to_string().replace("from every platform, sorted together", &format!("on {}", platform.name)));
+                match help {
+                    Some(help) => c.before_help(help),
+                    None => c,
+                }
+            });
+        }
+    }
+    let parsed =
+        command.try_get_matches_from(std::iter::once("bb".to_string()).chain(argv)).and_then(|mut m| Cli::from_arg_matches_mut(&mut m));
+    let cli = match parsed {
         Ok(cli) => cli,
         Err(e) => {
             let _ = e.print();
